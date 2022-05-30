@@ -2,8 +2,8 @@ using LinearAlgebra
 
 function reciprocal(a1::T, a2::T) where T<:Vector{Float64}
     mag = 2pi  / (a1[1]*a2[2] - a1[2]*a2[1])
-    b1 = mag .* (a2[2], -a2[1])
-    b2 = mag .* (-a1[2], a1[1])
+    b1 = mag .* [a2[2], -a2[1]]
+    b2 = mag .* [-a1[2], a1[1]]
     return (b1, b2) 
 end
 
