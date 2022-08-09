@@ -68,7 +68,7 @@ function total_energy(lattice::Lattice)
         end
         
     end
-    return E_bilinear/2 + E_ring + E_zeeman
+    return E_bilinear/2 + E_ring/4 + E_zeeman
 end
 
 function energy_density(lattice::Lattice)
