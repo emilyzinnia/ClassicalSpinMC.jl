@@ -114,6 +114,7 @@ function lattice(size::NTuple{D,Int64}, uc::UnitCell{D}, initialCondition::Symbo
                     bj = b1 
                     sign = -1
                     M = transposeJ(M)
+                end
             end
 
             # new_ind = mod.( index[2:end].+ (sign.*offset) .-1, size) .+1
