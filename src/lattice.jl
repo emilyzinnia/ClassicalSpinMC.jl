@@ -103,7 +103,7 @@ function lattice(size::NTuple{D,Int64}, uc::UnitCell{D}, initialCondition::Symbo
         #for each interaction term, obtain interaction matrix and index 
         for term in 1:N
             b1, b2, M, offset = interactions[term]
-            if b1 == index[1]
+            if (b1 == index[1]) || (b1 == b2)
                 bj = b2 
                 sign = 1 
             else
@@ -112,8 +112,9 @@ function lattice(size::NTuple{D,Int64}, uc::UnitCell{D}, initialCondition::Symbo
                 M = transposeJ(M)
             end
 
-            new_ind = mod.( index[2:end].+ (sign.*offset) .-1, size) .+1
-            j = findfirst(x->x == (bj, new_ind...), indices)
+            # new_ind = mod.( index[2:end].+ (sign.*offset) .-1, size) .+1
+            new_ind = mod.( index[2:end].+ offset .-1, size) .+1
+            j = findfirst(x->x == (b2, new_ind...), indices)
             s_[term] = j
             M_[term] = M
         end
