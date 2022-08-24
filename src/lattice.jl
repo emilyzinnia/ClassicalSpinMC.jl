@@ -96,6 +96,8 @@ function lattice(size::NTuple{D,Int64}, uc::UnitCell{D}, initialCondition::Symbo
     s_ = Vector{Int64}(undef, N)
     M_ = Vector{InteractionMatrix}(undef, N)
     r_ = Vector{NTuple{3, Int64}}(undef, R)
+
+    to_transpose = Vector{NTuple{2, Int64}}(undef, 0)
     
     for i in 1:N_sites
         index = indices[i]
@@ -103,31 +105,37 @@ function lattice(size::NTuple{D,Int64}, uc::UnitCell{D}, initialCondition::Symbo
         #for each interaction term, obtain interaction matrix and index 
         for term in 1:N
             b1, b2, M, offset = interactions[term]
-            if (b1 == index[1]) 
+            if b1 == b2
+                bj = index[1] 
+                new_ind = mod.( index[2:end].+ offset .-1, size) .+1
+                j = findfirst(x->x == (bj, new_ind...), indices)
+                s_[term] = j
+
+                if (i,j) in to_transpose
+                    M_[term] = transposeJ(M)
+                else
+                    M_[term] = M
+                end
+                push!(to_transpose, (j,i))
+                continue
+
+            elseif (b1 == index[1]) 
                 bj = b2 
                 sign = 1 
             else
-                if b1 == b2
-                    bj = index[1] 
-                    sign = 1 
-                else 
-                    bj = b1 
-                    sign = -1
-                    M = transposeJ(M)
-                end
+                bj = b1 
+                sign = -1
+                M = transposeJ(M)
             end
 
-            # new_ind = mod.( index[2:end].+ (sign.*offset) .-1, size) .+1
-            new_ind = mod.( index[2:end].+ offset .-1, size) .+1
+            new_ind = mod.( index[2:end].+ (sign.*offset) .-1, size) .+1
             j = findfirst(x->x == (bj, new_ind...), indices)
             s_[term] = j
             M_[term] = M
         end
-
         push!(lat.interaction_sites, tuple(s_...))
         push!(lat.interaction_matrices, tuple(M_...))
-
-
+        
         # for each ring exchange term, find neighbours and equivalent interaction tensor
         for term in 1:R
             J, j_offset, k_offset, l_offset = ring[term]
