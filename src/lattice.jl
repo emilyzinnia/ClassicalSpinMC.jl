@@ -108,7 +108,7 @@ function lattice(size::NTuple{D,Int64}, uc::UnitCell{D}, initialCondition::Symbo
                 sign = 1 
             else
                 if b1 == b2
-                    bj = b2 
+                    bj = index[1] 
                     sign = 1 
                 else 
                     bj = b1 
@@ -119,7 +119,7 @@ function lattice(size::NTuple{D,Int64}, uc::UnitCell{D}, initialCondition::Symbo
 
             # new_ind = mod.( index[2:end].+ (sign.*offset) .-1, size) .+1
             new_ind = mod.( index[2:end].+ offset .-1, size) .+1
-            j = findfirst(x->x == (b2, new_ind...), indices)
+            j = findfirst(x->x == (bj, new_ind...), indices)
             s_[term] = j
             M_[term] = M
         end
