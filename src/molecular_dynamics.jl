@@ -338,6 +338,7 @@ function compute_dynamic_structure_factor(path::String, dest::String, params::Di
     ks = read(f0["spin_correlations/momentum"])
     pc = read(f0["spin_correlations/point_count"])
     freq = read(f0["spin_correlations/freq"])
+    close(f0)
     DSF = LogBinner(zeros(Float64, shape...))
 
     # collecting correlations
