@@ -23,6 +23,7 @@ function MPISimpleRecvSend(sendbuf::Real, dest::Integer, comm::MPI.Comm)
 end
 
 function print_runtime_statistics!(mc, output_stats::Vector{Int64}, enableMPI::Bool)
+    rank = 0 
     accepted_local, exchange_rate, exchange_rate_prev, s_prev, local_prev = output_stats
     total_sweeps = mc.parameters.t_thermalization + mc.parameters.t_measurement
     t = mc.sweep
@@ -33,7 +34,6 @@ function print_runtime_statistics!(mc, output_stats::Vector{Int64}, enableMPI::B
     local_acceptance_rate = (accepted_local-local_prev) / attempted_local * 100.0
     exchange_rate_tot = (exchange_rate-exchange_rate_prev) / attempted_swap * 100.0
 
-    rank = 0 
     if enableMPI
         comm = MPI.COMM_WORLD
         commSize = MPI.Comm_size(comm)
