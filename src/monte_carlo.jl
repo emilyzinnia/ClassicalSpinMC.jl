@@ -149,6 +149,7 @@ function parallel_tempering!(mc::MonteCarlo, path="/tmp/", saveIC=[])
     local_prev = 0
     output_stats = [accepted_local, exchange_rate, exchange_rate_prev, s_prev, local_prev]
     accept_arr = [false]
+    total_sweeps = mc.parameters.t_thermalization + mc.parameters.t_measurement
     IC = (length(saveIC) != 0) ? true : false
 
     if IC
