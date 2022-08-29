@@ -115,7 +115,7 @@ function deterministic_updates!(mc::MonteCarlo)
     end
 end
 
-function parallel_tempering!(mc::MonteCarlo, path="/tmp/", saveIC=[])
+function parallel_tempering!(mc::MonteCarlo, path="", saveIC=[])
     # initialize MPI parameters 
     rank = 0
     commSize = 1
@@ -136,6 +136,10 @@ function parallel_tempering!(mc::MonteCarlo, path="/tmp/", saveIC=[])
         end
     end
 
+    if out
+        filename="configuration_$rank.h5"
+    end
+    
     # generate initial spins and initialize energy  
     E = total_energy(mc.lattice)
     new_spins = similar(mc.lattice.spins)
