@@ -139,7 +139,7 @@ function parallel_tempering!(mc::MonteCarlo, path="", saveIC=[])
     if out
         filename="configuration_$rank.h5"
     end
-    
+
     # generate initial spins and initialize energy  
     E = total_energy(mc.lattice)
     new_spins = similar(mc.lattice.spins)
@@ -257,6 +257,8 @@ function parallel_tempering!(mc::MonteCarlo, path="", saveIC=[])
         
         # output runtime statistics 
         if mc.sweep % mc.parameters.report_interval == 0
+            output_stats[1] = accepted_local
+            output_stats[2] = exchange_rate
             print_runtime_statistics!(mc, output_stats, enableMPI)
         end
 
