@@ -83,7 +83,17 @@ function simulated_annealing!(mc::MonteCarlo, schedule, T0::Float64=1.0, path=""
     T = T0
     time = 1
     out = length(path) > 0
-    filename = "configuration_$rank.h5"
+
+    # check if configuration file exists. if not, create it 
+    if out
+        filename="configuration_$rank.h5"
+        rank == 0 && !isdir(string(path)) && mkdir( string(path) )
+        if !isfile(string(path,filename))
+            println("Creating new file $filename for output on rank $rank")
+            initialize_hdf5(string(path,filename), mc)
+        end
+    end
+
     while T > mc.T
         t = 1
         while t < mc.parameters.t_thermalization
@@ -138,6 +148,12 @@ function parallel_tempering!(mc::MonteCarlo, path="", saveIC=[])
 
     if out
         filename="configuration_$rank.h5"
+        rank == 0 && !isdir(string(path)) && mkdir( string(path) )
+        # create new file for output if there isn't already one existing 
+        if !isfile(string(path,filename))
+            println("Creating new file $filename for output on rank $rank")
+            initialize_hdf5(string(path,filename), mc)
+        end
     end
 
     # generate initial spins and initialize energy  
