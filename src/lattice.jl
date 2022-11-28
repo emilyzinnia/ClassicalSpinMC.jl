@@ -14,7 +14,7 @@ mutable struct Lattice{D,N,R}
     interaction_matrices::Vector{NTuple{N,InteractionMatrix}}
     ring_exchange_sites::Vector{NTuple{R, NTuple{3, Int64}}}
     ring_exchange_tensors::NTuple{R, Array{Float64, 4}}
-    field::Vector{Float64}
+    field::Vector{NTuple{3,Float64}}
 
     Lattice(D,N,R) = new{D,N,R}()
 end
@@ -48,7 +48,7 @@ end
 
 #wrapper for Lattice object 
 function lattice(size::NTuple{D,Int64}, uc::UnitCell{D}, initialCondition::Symbol=:random, 
-                S::Real=1/2, field::Vector{Float64}=zeros(Float64, 3)) where D
+                S::Real=1/2) where D
     
     if length(uc.basis) == 0
         addBasisSite!(uc, zeros(Float64, D))
@@ -80,14 +80,27 @@ function lattice(size::NTuple{D,Int64}, uc::UnitCell{D}, initialCondition::Symbo
     lat.spins = spins 
     lat.unit_cell = uc
     lat.site_positions = compute_site_positions(uc, size)
-    lat.field = field
+    # lat.field = field
 
+    lat.field = Vector{NTuple{3,Float64}}(undef, 0)
     lat.interaction_sites = Vector{NTuple{N, Int64}}(undef, 0)
     lat.interaction_matrices = Vector{NTuple{N,InteractionMatrix}}(undef, 0)
 
     # if no ring exchange terms, make empty matrix 
     lat.ring_exchange_sites = Vector{NTuple{R, NTuple{3, Int64}}}(undef, 0)
     
+    # if no field specified, set each field to zero on each sublattice 
+    # create a matrix containing the field for each basis vector in order 
+    f_indices = [uc.field[i][1] for i in 1:length(uc.field)]
+    f_ = [uc.field[i][2] for i in 1:length(uc.field)]
+    field = Matrix{Float64}(undef, 3, length(uc.basis))
+    for i in 1:length(uc.basis)
+        if !(i in f_indices)
+            field[:,i] .= [0.0, 0.0, 0.0]
+        else
+            field[:,f_indices[i]] .= f_[i]
+        end
+    end
     # get interactions for each site 
     interactions = uc.interactions
     ring = uc.ringexchange
@@ -100,7 +113,10 @@ function lattice(size::NTuple{D,Int64}, uc::UnitCell{D}, initialCondition::Symbo
     for i in 1:N_sites
         index = indices[i]
         
-        #for each interaction term, obtain interaction matrix and index 
+        # add local zeeman coupling 
+        push!(lat.field, tuple(field[:,index[1]]...))
+
+        # for each interaction term, obtain interaction matrix and index 
         for term in 1:N
             b1, b2, M, offset = interactions[term]
             if b1 == b2
@@ -163,6 +179,10 @@ function random_spin_orientation(S::Real, rng=Random.GLOBAL_RNG)::NTuple{3, Floa
     z = 2.0 * rand(rng) - 1.0;
     r = sqrt(1.0 - z*z)
     return S .* (r*cos(phi), r*sin(phi), z)
+end
+
+function get_field(lat::Lattice{D,N,R}, point::Int64)::NTuple{3, Float64} where{D,N,R}
+    return lat.field[point]
 end
 
 function get_interaction_sites(lat::Lattice{D,N,R}, point::Int64)::NTuple{N, Int64} where{D,N,R}

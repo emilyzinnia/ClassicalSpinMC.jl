@@ -3,17 +3,23 @@
 struct UnitCell{D}
     lattice_vectors::NTuple{D, Vector{Float64}}
     basis::Vector{Vector{Float64}}
-
+    field::Vector{ Tuple{Int64, Vector{Float64}} }
     interactions::Vector{ Tuple{Int64, Int64, InteractionMatrix, NTuple{D, Int64}}}
     ringexchange::Vector{ Tuple{Array{Float64, 4}, NTuple{D, Int64}, NTuple{D, Int64}, NTuple{D, Int64}}}
 
     UnitCell(as...) = new{length(as)}(as, Vector{Vector{Float64}}(undef,0), 
+                    Vector{ Tuple{Int64, Vector{Float64}}}(undef, 0),
                     Vector{ Tuple{Int64, Int64, InteractionMatrix, NTuple{length(as), Int64}}}(undef,0),
                     Vector{ Tuple{Array{Float64, 4}, NTuple{length(as), Int64}, NTuple{length(as), Int64}, NTuple{length(as), Int64}}}(undef,0))
 end
 
 function addBasisSite!(uc::UnitCell{D}, site::Vector{Float64}) where D
     push!(uc.basis, site)
+end
+
+"""Add Zeeman coupling on basis site b1"""
+function addZeemanCoupling!(uc::UnitCell{D}, b1::Int64, h::Vector{Float64}) where D
+    push!(uc.field, (b1, h))
 end
 
 """Add interaction between basis site b1 and b2, with offset denoting the unit cell offset."""

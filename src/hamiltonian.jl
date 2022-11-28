@@ -4,9 +4,10 @@ function get_local_field(lattice::Lattice, point::Int64)
     @inbounds js = get_interaction_sites(lattice, point)
     @inbounds Js = get_interaction_matrices(lattice, point)
     @inbounds rs = get_ring_exchange_sites(lattice, point)
+    @inbounds h = get_field(lattice, point)
     Rs = lattice.ring_exchange_tensors
 
-    h = lattice.field
+    # h = lattice.field
     # sum over all interactions
     Hx = 0.0
     Hy = 0.0
@@ -39,13 +40,14 @@ function total_energy(lattice::Lattice)
     E_bilinear = 0.0
     E_ring = 0.0
     E_zeeman = 0.0
-    h = lattice.field 
+    # h = lattice.field 
     Rs = lattice.ring_exchange_tensors
     
     for point in 1:lattice.size 
         @inbounds js = get_interaction_sites(lattice, point)
         @inbounds Js = get_interaction_matrices(lattice, point)
         @inbounds rs = get_ring_exchange_sites(lattice, point)
+        @inbounds h = get_field(lattice, point)
         
         s = get_spin(lattice.spins, point)
         E_zeeman -= (s[1] * h[1] + s[2] * h[2] + s[3] * h[3]) 
@@ -81,9 +83,10 @@ function energy(lattice::Lattice, point::Int64)::Float64
     @inbounds Js = get_interaction_matrices(lattice, point)
     @inbounds rs = get_ring_exchange_sites(lattice, point)
     @inbounds Rs = lattice.ring_exchange_tensors
+    @inbounds h = get_field(lattice, point)
 
     s = get_spin(lattice.spins, point)
-    h = lattice.field 
+    # h = lattice.field 
 
     # sum over all nearest neighbours
     E = 0.0
