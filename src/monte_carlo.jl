@@ -27,7 +27,7 @@ mutable struct MonteCarlo
 end
 
 #MonteCarlo wrapper
-function MonteCarlo(T::Float64, lattice::Lattice, parameters::SimulationParameters, inparams::Dict{String,Float})::MonteCarlo
+function MonteCarlo(T::Float64, lattice::Lattice, parameters::SimulationParameters, inparams::Dict{String,Float64})::MonteCarlo
     mc = MonteCarlo()
     mc.T = T 
     mc.sweep = 0
