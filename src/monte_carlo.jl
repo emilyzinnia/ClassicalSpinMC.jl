@@ -18,6 +18,7 @@ mutable struct MonteCarlo
     T::Float64
     sweep::Int64
 
+    input_parameters::Dict{String,Float}
     parameters::SimulationParameters
     observables::Observables
     lattice::Lattice 
@@ -26,13 +27,14 @@ mutable struct MonteCarlo
 end
 
 #MonteCarlo wrapper
-function MonteCarlo(T::Float64, lattice::Lattice, parameters::SimulationParameters)::MonteCarlo
+function MonteCarlo(T::Float64, lattice::Lattice, parameters::SimulationParameters, inparams::Dict{String,Float})::MonteCarlo
     mc = MonteCarlo()
     mc.T = T 
     mc.sweep = 0
     mc.observables = Observables()
     mc.lattice = deepcopy(lattice)
     mc.parameters = deepcopy(parameters)
+    mc.input_parameters = deepcopy(inparams)
     mc.roundtripMarker = 1.0
     return mc
 end

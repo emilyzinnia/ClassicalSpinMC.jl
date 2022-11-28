@@ -17,14 +17,13 @@ function dump_attributes_hdf5!(fid, dict::Dict{String,Float64})
 end
 
 # dims is the number of measurements that will be taken 
-function initialize_hdf5(filename, mc, lattice_params)
+function initialize_hdf5(filename, mc)
     file = h5open(filename, "w")
     # dump all input parameters 
-    dump_attributes_hdf5!(file, lattice_params)
+    dump_attributes_hdf5!(file, mc.input_parameters)
     dump_attributes_hdf5!(file, mc.parameters)
     write_attribute(file, "T", mc.T)
     write_attribute(file, "shape", collect(mc.lattice.shape))
-    write_attribute(file, "field", mc.lattice.field)
     file["spins"] = mc.lattice.spins
     file["site_positions"] = mc.lattice.site_positions
     close(file)
