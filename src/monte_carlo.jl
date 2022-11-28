@@ -18,7 +18,7 @@ mutable struct MonteCarlo
     T::Float64
     sweep::Int64
 
-    input_parameters::Dict{String,Float}
+    input_parameters::Dict{String,Float64}
     parameters::SimulationParameters
     observables::Observables
     lattice::Lattice 
