@@ -122,15 +122,6 @@ function lattice(size::NTuple{D,Int64}, uc::UnitCell{D}, initialCondition::Symbo
             if b1 == b2
                 bj = index[1] 
                 sign = 1
-
-                # if (i,j) in to_transpose
-                #     M_[term] = transposeJ(M)
-                # else
-                #     M_[term] = M
-                # end
-                # push!(to_transpose, (j,i))
-                # continue
-                sign = 1
             elseif (b1 == index[1]) 
                 bj = b2 
                 sign = 1 
