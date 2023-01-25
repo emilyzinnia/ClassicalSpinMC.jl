@@ -31,10 +31,11 @@ function timeEvolve!(du, u, p, t)
     N = p[1] # size of the lattice 
     interaction_sites = p[2] # interaction sites 
     interaction_matrices = p[3] # interaction matrices
-    h = p[4] # field 
+    hs = p[4] # field 
     for i=1:N
         js = interaction_sites[i]
         Js = interaction_matrices[i]
+        h = hs[i]
         Hx = 0.0
         Hy = 0.0
         Hz = 0.0
@@ -61,7 +62,7 @@ function timeEvolve!(du, u, p, t)
     end
 end
 
-function compute_time_evolution(lat::Lattice, md::MDbuffer)
+function compute_time_evolution(lat::Lattice, md::MDbuffer, alg=Tsit5(), tol::Float64=1e-7)
     # time evolve the spins 
     s0 = vcat(lat.spins...)   # flatten to vector of (Sx1, Sy1, Sz1...)
     params = [lat.size, lat.interaction_sites, lat.interaction_matrices, lat.field]
@@ -96,8 +97,7 @@ function compute_time_evolution(lat::Lattice, md::MDbuffer)
     cb = PresetTimeCallback(md.tt, perform_measurements!)
     
     # solve ODE 
-    tol = 1e-8
-    sol = solve(prob, Vern7(), reltol=tol, abstol=tol, callback=cb, dense=false, save_on=false)
+    sol = solve(prob, alg, reltol=tol, abstol=tol, callback=cb, dense=false, save_on=false)
     return Sqw[3 * collect(1:N_k) .- 2, :], Sqw[3 * collect(1:N_k) .- 1, :], Sqw[3 * collect(1:N_k) , :] 
 end
 
@@ -125,7 +125,6 @@ function compute_FT_correlations(S_q::NTuple{3, Array{ComplexF64, 2}}, lat::Latt
 end
 
 function compute_equal_time_correlations(lat::Lattice, ks::Array{Float64,2})
-
     N_k = size(ks)[2]
     pos = lat.site_positions
     Suv = Array{Float64, 2}(undef, 9, N_k)
@@ -164,12 +163,20 @@ function compute_equal_time_correlations(lat::Lattice, ks::Array{Float64,2})
     return Suv ./ lat.size
 end
 
-function runStaticStructureFactor!(path)
-    #initialize MPI
-    MPI.Initialized() || throw(ErrorException("MPI has not been initialized"))
-    comm = MPI.COMM_WORLD
-    commSize = MPI.Comm_size(comm)
-    rank = MPI.Comm_rank(comm)
+function runStaticStructureFactor!(path, lat::Lattice, ks::Matrix{Float64}, override=false)
+    # initialize MPI parameters 
+    rank = 0
+    commSize = 1
+    enableMPI = false
+    
+    if MPI.Initialized()
+        comm = MPI.COMM_WORLD
+        commSize = MPI.Comm_size(comm)
+        rank = MPI.Comm_rank(comm)
+        if commSize > 1
+            enableMPI = true
+        end
+    end
 
     # split computations evenly along all nodes 
     N_IC = length(readdir(path)) # number of initial configurations 
@@ -192,29 +199,34 @@ function runStaticStructureFactor!(path)
         
         # initialize lattice object from hdf5 file 
         file = string(path, "IC_$IC.h5") 
-        lat = read_initial_configuration(file)  
+        read_spin_configuration!(file, lat)
 
-        L = lat.shape[2]
-        ks = get_allowed_wavevectors(Honeycomb(), collect(-2L:2L)/L)
-
-        # compute correlations and output
-        println("Computing SSF $i/$N_per_rank on rank $rank")
-        @time S = compute_equal_time_correlations(lat, ks)
-
-        println("Writing IC $IC to file on rank $rank")
-        res = Dict("SSF"=>S, "SSF_momentum"=>ks)
-        f = h5open(file, "r+")
-        if haskey(f, "spin_correlations")
-            g = f["spin_correlations"]
-            overwrite_keys!(g, res)
-        else
-            g = create_group(f, "spin_correlations")
-            for key in keys(res)
-                g[key] = res[key]
-            end
-        end
+        f = h5open(file, "r+") 
+        exists = haskey(f, "spin_correlations")
         close(f)
+        if exists && !override
+            println("Skipping IC_$IC")
+            IC += 1
+            continue
+        else
+            # compute correlations and output
+            println("Computing SSF $i/$N_per_rank on rank $rank")
+            @time S = compute_equal_time_correlations(lat, ks)
 
+            println("Writing IC $IC to file on rank $rank")
+            res = Dict("SSF"=>S, "SSF_momentum"=>ks)
+            f = h5open(file, "r+")
+            if haskey(f, "spin_correlations")
+                g = f["spin_correlations"]
+                overwrite_keys!(g, res)
+            else
+                g = create_group(f, "spin_correlations")
+                for key in keys(res)
+                    g[key] = res[key]
+                end
+            end
+            close(f)
+        end
         # increment configuration 
         IC += 1
     end
@@ -222,12 +234,21 @@ function runStaticStructureFactor!(path)
     println("Calculation completed on rank $rank on ", Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
 end
 
-function runMolecularDynamics!(path, dir, tstep, tmin, tmax, lat::Lattice, ks::Matrix{Float64})
-    #initialize MPI
-    MPI.Initialized() || throw(ErrorException("MPI has not been initialized"))
-    comm = MPI.COMM_WORLD
-    commSize = MPI.Comm_size(comm)
-    rank = MPI.Comm_rank(comm)
+function runMolecularDynamics!(path, tstep, tmin, tmax, lat::Lattice, ks::Matrix{Float64}, alg=Tsit5(), tol::Float64=1e-7,
+                               override=false)
+    # initialize MPI parameters 
+    rank = 0
+    commSize = 1
+    enableMPI = false
+    
+    if MPI.Initialized()
+        comm = MPI.COMM_WORLD
+        commSize = MPI.Comm_size(comm)
+        rank = MPI.Comm_rank(comm)
+        if commSize > 1
+            enableMPI = true
+        end
+    end
 
     # split computations evenly along all nodes 
     N_IC = length(readdir(path)) # number of initial configurations 
@@ -255,13 +276,13 @@ function runMolecularDynamics!(path, dir, tstep, tmin, tmax, lat::Lattice, ks::M
         f = h5open(file, "r+") 
         exists = haskey(f, "spin_correlations")
         close(f)
-        if exists
+        if exists && !override
             println("Skipping IC_$IC")
             IC += 1
             continue
         else
             println("Time evolving for IC $i/$N_per_rank on rank $rank")
-            @time S_t = compute_time_evolution(lat, MD)
+            @time S_t = compute_time_evolution(lat, MD, alg, tol)
             corr = compute_FT_correlations(S_t, lat, MD)
 
             println("Writing IC $IC to file on rank $rank")
