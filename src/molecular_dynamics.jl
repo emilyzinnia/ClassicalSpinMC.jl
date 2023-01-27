@@ -355,9 +355,7 @@ function compute_dynamic_structure_factor(path::String, dest::String, params::Di
     files = readdir(path)
     f0 = h5open(string(path, files[1]), "r")
     shape = size(read(f0["spin_correlations/S_qw"]) )
-
     ks = read(f0["spin_correlations/momentum"])
-    pc = read(f0["spin_correlations/point_count"])
     freq = read(f0["spin_correlations/freq"])
     close(f0)
     DSF = LogBinner(zeros(Float64, shape...))
@@ -374,17 +372,14 @@ function compute_dynamic_structure_factor(path::String, dest::String, params::Di
     # write to configuration file 
     println("Writing to $dest")
     d = h5open(dest, "r+")
-    overwrite_keys!(d, params)
     res = Dict("freq"=>freq, "momentum"=>ks,  "S_qw"=>mean(DSF))
     if haskey(d, "spin_correlations")
         g = d["spin_correlations"]
-        overwrite_keys!(g, res)
     else
         g = create_group(d, "spin_correlations")
-        for key in keys(res)
-            g[key] = res[key]
-        end
     end
+    overwrite_keys!(g, params)
+    overwrite_keys!(g, res)
     close(d)
 
     println("Successfully averaged ",length(files), " files")
