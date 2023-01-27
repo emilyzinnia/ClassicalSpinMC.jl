@@ -40,7 +40,7 @@ function timeEvolve!(du, u, p, t)
         Hy = 0.0
         Hz = 0.0
         # calculate local effective field 
-        for n=1:length(js)
+        for n in eachindex(js)
             J = Js[n]
             j = js[n]
             ux = u[3j-2]
@@ -216,15 +216,8 @@ function runStaticStructureFactor!(path, lat::Lattice, ks::Matrix{Float64}, over
             println("Writing IC $IC to file on rank $rank")
             res = Dict("SSF"=>S, "SSF_momentum"=>ks)
             f = h5open(file, "r+")
-            if haskey(f, "spin_correlations")
-                g = f["spin_correlations"]
-                overwrite_keys!(g, res)
-            else
-                g = create_group(f, "spin_correlations")
-                for key in keys(res)
-                    g[key] = res[key]
-                end
-            end
+            g = haskey(f, "spin_correlations") ? f["spin_correlations"] : create_group(f, "spin_correlations")
+            overwrite_keys!(g, res)
             close(f)
         end
         # increment configuration 
@@ -265,14 +258,13 @@ function runMolecularDynamics!(path, tstep, tmin, tmax, lat::Lattice, ks::Matrix
     commSize > 1 && MPI.Allgather!(MPI.IN_PLACE, N_rank, 1, MPI.COMM_WORLD) 
 
     IC = rank == 0 ? 0 : sum(N_rank[1:rank])
+    MD = MD_buffer(ks, tstep, tmin, tmax)
 
-    # initialize lattice object 
     for i in 1:N_per_rank
         # initialize lattice object from hdf5 file 
         file = string(path, "IC_$IC.h5") 
         read_spin_configuration!(file, lat)
-        MD = MD_buffer(ks, tstep, tmin, tmax)
-
+        
         f = h5open(file, "r+") 
         exists = haskey(f, "spin_correlations")
         close(f)
@@ -288,17 +280,9 @@ function runMolecularDynamics!(path, tstep, tmin, tmax, lat::Lattice, ks::Matrix
             println("Writing IC $IC to file on rank $rank")
             res = Dict("S_qw"=>corr, "freq"=>MD.freq, "momentum"=>ks)
             h5open(file, "r+") do f
-                if haskey(f, "spin_correlations")
-                    g = f["spin_correlations"]
-                    overwrite_keys!(g, res)
-                else
-                    g = create_group(f, "spin_correlations")
-                    for key in keys(res)
-                        g[key] = res[key]
-                    end
-                end
+                g = haskey(f, "spin_correlations") ? f["spin_correlations"] : create_group(f, "spin_correlations")
+                overwrite_keys!(g, res)
             end
-
         end
         # increment configuration 
         IC += 1
@@ -336,15 +320,8 @@ function compute_static_structure_factor(path::String, dest::String)
     res = Dict(
                "SSF"=>mean(SSF), 
                "SSF_momentum"=>ks)
-    if haskey(d, "spin_correlations")
-        g = d["spin_correlations"]
-        overwrite_keys!(g, res)
-    else
-        g = create_group(d, "spin_correlations")
-        for key in keys(res)
-            g[key] = res[key]
-        end
-    end
+    g = haskey(d, "spin_correlations") ? d["spin_correlations"] : create_group(d, "spin_correlations")
+    overwrite_keys!(g, res)
     close(d)
     println("Done")
 end
@@ -373,11 +350,7 @@ function compute_dynamic_structure_factor(path::String, dest::String, params::Di
     println("Writing to $dest")
     d = h5open(dest, "r+")
     res = Dict("freq"=>freq, "momentum"=>ks,  "S_qw"=>mean(DSF))
-    if haskey(d, "spin_correlations")
-        g = d["spin_correlations"]
-    else
-        g = create_group(d, "spin_correlations")
-    end
+    g = haskey(d, "spin_correlations") ? d["spin_correlations"] : create_group(d, "spin_correlations")
     overwrite_keys!(g, params)
     overwrite_keys!(g, res)
     close(d)
