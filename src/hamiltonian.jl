@@ -20,7 +20,7 @@ function get_local_field(lattice::Lattice, point::Int64)
         @inbounds Hz += J.m31 * sjx + J.m32 * sjy + J.m33 * sjz 
     end
 
-    for n in eachindex(js)
+    for n in eachindex(rs)
         R = Rs[n]
         j, k, l = rs[n]
         @inbounds sj = get_spin(lattice.spins, j)
@@ -59,8 +59,8 @@ function total_energy(lattice::Lattice)
                             s[3] * (J.m31 * sj[1] + J.m32 * sj[2] + J.m33 * sj[3]) 
         end
 
-            # ring exchange term 
-        for n in eachindex(js)
+        # ring exchange term 
+        for n in eachindex(rs)
             R = Rs[n]
             j, k, l = rs[n]
             @inbounds sj = get_spin(lattice.spins, j)
@@ -99,7 +99,7 @@ function energy(lattice::Lattice, point::Int64)::Float64
     end
 
     # ring exchange term 
-    for n in eachindex(js)
+    for n in eachindex(rs)
         R = Rs[n]
         j, k, l = rs[n]
         @inbounds sj = get_spin(lattice.spins, j)
