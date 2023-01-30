@@ -12,7 +12,7 @@ function get_local_field(lattice::Lattice, point::Int64)
     Hx = 0.0
     Hy = 0.0
     Hz = 0.0
-    for n=1:length(js)
+    for n in eachindex(js)
         J = Js[n]
         @inbounds sjx, sjy, sjz = get_spin(lattice.spins, js[n])
         @inbounds Hx += J.m11 * sjx + J.m12 * sjy + J.m13 * sjz 
@@ -20,7 +20,7 @@ function get_local_field(lattice::Lattice, point::Int64)
         @inbounds Hz += J.m31 * sjx + J.m32 * sjy + J.m33 * sjz 
     end
 
-    for n=1:length(rs)
+    for n in eachindex(js)
         R = Rs[n]
         j, k, l = rs[n]
         @inbounds sj = get_spin(lattice.spins, j)
@@ -51,7 +51,7 @@ function total_energy(lattice::Lattice)
         
         s = get_spin(lattice.spins, point)
         E_zeeman -= (s[1] * h[1] + s[2] * h[2] + s[3] * h[3]) 
-        for n=1:length(js)
+        for n in eachindex(js)
             J = Js[n]
             @inbounds sj = get_spin(lattice.spins, js[n])
             @inbounds E_bilinear +=  s[1] * (J.m11 * sj[1] + J.m12 * sj[2] + J.m13 * sj[3]) + 
@@ -60,7 +60,7 @@ function total_energy(lattice::Lattice)
         end
 
             # ring exchange term 
-        for n=1:length(rs)
+        for n in eachindex(js)
             R = Rs[n]
             j, k, l = rs[n]
             @inbounds sj = get_spin(lattice.spins, j)
@@ -90,7 +90,7 @@ function energy(lattice::Lattice, point::Int64)::Float64
 
     # sum over all nearest neighbours
     E = 0.0
-    for n=1:length(js)
+    for n in eachindex(js)
         J = Js[n]
         @inbounds sj = get_spin(lattice.spins, js[n])
         @inbounds E +=  s[1] * (J.m11 * sj[1] + J.m12 * sj[2] + J.m13 * sj[3]) + 
@@ -99,7 +99,7 @@ function energy(lattice::Lattice, point::Int64)::Float64
     end
 
     # ring exchange term 
-    for n=1:length(rs)
+    for n in eachindex(js)
         R = Rs[n]
         j, k, l = rs[n]
         @inbounds sj = get_spin(lattice.spins, j)

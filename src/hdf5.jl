@@ -48,6 +48,7 @@ function write_final_observables!(filename::String, mc)
     file = h5open(filename, "r+")
     file["spins"][:,:] = mc.lattice.spins  # dump final spins 
     heat, dheat = specific_heat(mc)
+    chi, dchi = susceptibility(mc)
     
     if haskey(file, "observables")
         g = file["observables"]
@@ -61,8 +62,10 @@ function write_final_observables!(filename::String, mc)
 
     g["specific_heat"] = heat 
     g["specific_heat_err"] = abs(dheat/heat)
-    g["magnetization"] = mean(mc.observables.magnetization)
-    g["magnetization_err"] = std_error(mc.observables.magnetization)
+    g["susceptibility"] = chi
+    g["susceptibility_err"] = abs(dchi/chi)
+    g["magnetization"] = mean(mc.observables.magnetization, 1)
+    g["magnetization_err"] = std_error(mc.observables.magnetization, 1)
     g["energy"] = mean(mc.observables.energy,1)
     g["energy_err"] = std_error(mc.observables.energy,1)
     g["roundtripMarker"] = mean(mc.observables.roundtripMarker)

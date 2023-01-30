@@ -266,7 +266,8 @@ function parallel_tempering!(mc::MonteCarlo, path="", saveIC=[])
 
             # update observables 
             if mc.sweep % mc.parameters.probe_rate == 0
-                update_observables!(mc,  E)
+                M = get_magnetization(mc.lattice)
+                update_observables!(mc, E,  M)
             end
         end
         

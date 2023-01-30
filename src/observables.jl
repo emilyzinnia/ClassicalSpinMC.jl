@@ -4,7 +4,7 @@ using LinearAlgebra
 
 mutable struct Observables
     energy::ErrorPropagator{Float64,32}
-    magnetization::LogBinner{Float64,32,BinningAnalysis.Variance{Float64}}
+    magnetization::ErrorPropagator{Float64,32}
     energyTimeSeries::FullBinner{Float64,Vector{Float64}}
     roundtripMarker::LogBinner{Float64,32,BinningAnalysis.Variance{Float64}}
     Observables() = new(ErrorPropagator(Float64), LogBinner(Float64), FullBinner(Float64), LogBinner(Float64) )
@@ -18,11 +18,11 @@ function get_magnetization(lattice::Lattice)::Float64
     return norm(m)
 end
 
-function update_observables!(mc, energy::Float64)
+function update_observables!(mc, energy::Float64, magnetization::Float64)
     #measure energy and energy^2
     push!(mc.observables.energy, energy, energy^2 )
-    #measure magnetization
-    push!(mc.observables.magnetization, get_magnetization(mc.lattice))
+    #measure magnetization and magnetization^2 
+    push!(mc.observables.magnetization, magnetization, magnetization^2)
 end
 
 function std_error_tweak(ep::ErrorPropagator, gradient, lvl = BinningAnalysis._reliable_level(ep))
@@ -42,4 +42,18 @@ function specific_heat(mc)
     dheat = std_error_tweak(ep, ∇c)
 
     return heat, dheat
+end 
+
+function susceptibility(mc)
+    m = mc.observables.magnetization 
+    temp = mc.T 
+    lat = mc.lattice 
+
+    #compute susceptibility
+    x(m) = 1/temp * (m[2] - m[1]*m[1]) / lat.size 
+    ∇x(m) = [-2 * 1/temp * m[1] / lat.size, 1/temp / lat.size ] 
+    chi = mean(m, x)
+    dchi = std_error_tweak(m, ∇x)
+
+    return chi, dchi 
 end 
