@@ -47,8 +47,8 @@ function compute_site_positions(uc::UnitCell{D}, size::NTuple{D,Int64}) where D
 end
 
 #wrapper for Lattice object 
-function lattice(size::NTuple{D,Int64}, uc::UnitCell{D}, initialCondition::Symbol=:random, 
-                S::Real=1/2) where D
+function lattice(size::NTuple{D,Int64}, uc::UnitCell{D}, 
+                S::Real=1/2; bc::Symbol=:periodic, initialCondition::Symbol=:random) where D
     
     if length(uc.basis) == 0
         addBasisSite!(uc, zeros(Float64, D))
@@ -110,6 +110,17 @@ function lattice(size::NTuple{D,Int64}, uc::UnitCell{D}, initialCondition::Symbo
     M_ = Vector{InteractionMatrix}(undef, N)
     r_ = Vector{NTuple{3, Int64}}(undef, R)
 
+    function BC(index, offset)
+        if bc == :periodic
+            return mod.( index[2:end].+ (offset) .-1, size) .+1
+        elseif bc == :open
+            return index[2:end].+ (offset) 
+        else
+            return error("Invalid boundary condition option")
+        end
+    end
+
+
     for i in 1:N_sites
         index = indices[i]
         
@@ -131,10 +142,16 @@ function lattice(size::NTuple{D,Int64}, uc::UnitCell{D}, initialCondition::Symbo
                 M = transposeJ(M)
             end
 
-            new_ind = mod.( index[2:end].+ (sign.*offset) .-1, size) .+1
+            # new_ind = mod.( index[2:end].+ (sign.*offset) .-1, size) .+1
+            new_ind = BC(index, sign.*offset)
             j = findfirst(x->x == (bj, new_ind...), indices)
-            s_[term] = j
-            M_[term] = M
+            if !isnothing(j)
+                s_[term] = j
+                M_[term] = M
+            else
+                s_[term] = 1
+                M_[term] = InteractionMatrix(zeros(Float64, 3, 3))
+            end
         end
         push!(lat.interaction_sites, tuple(s_...))
         push!(lat.interaction_matrices, tuple(M_...))
@@ -142,9 +159,15 @@ function lattice(size::NTuple{D,Int64}, uc::UnitCell{D}, initialCondition::Symbo
         # for each ring exchange term, find neighbours and equivalent interaction tensor
         for term in 1:R
             J, j_offset, k_offset, l_offset = ring[term]
-            j = findfirst(x->x == (1, (mod.( index[2:end].+ j_offset .-1, size) .+1)...), indices)
-            k = findfirst(x->x == (1, (mod.( index[2:end].+ k_offset .-1, size) .+1)...), indices)
-            l = findfirst(x->x == (1, (mod.( index[2:end].+ l_offset .-1, size) .+1)...), indices)
+            # j = findfirst(x->x == (1, (mod.( index[2:end].+ j_offset .-1, size) .+1)...), indices)
+            # k = findfirst(x->x == (1, (mod.( index[2:end].+ k_offset .-1, size) .+1)...), indices)
+            # l = findfirst(x->x == (1, (mod.( index[2:end].+ l_offset .-1, size) .+1)...), indices)
+            j = findfirst(x->x == (1, BC(index, j_offset)...), indices)
+            k = findfirst(x->x == (1, BC(index, k_offset)...), indices)
+            l = findfirst(x->x == (1, BC(index, l_offset)...), indices)
+            if isnothing(j) | isnothing(k) | isnothing(l)
+                error("Open BC not implemented for ring exchange")
+            end
             r_[term] = (j, k, l)
         end
 
