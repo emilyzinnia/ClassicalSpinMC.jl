@@ -70,40 +70,22 @@ function metropolis!(mc::MonteCarlo, T::Float64)
     accept_rate = 0.0
     # perform local updates and sweep through lattice
     sweep = 0
+    while sweep < mc.lattice.size
+        point = rand(1:mc.lattice.size) # pick random index
+        old_spin = get_spin(mc.lattice.spins, point) # store old spin 
+        delta_E = calculate_energy_diff!(mc.lattice, point) 
+        constraint = mc.constraint(mc.lattice)
+        new_lambda = mc.lambda - mc.weight * constraint
 
-    if mc.weight == 0.0
-        while sweep < mc.lattice.size
-            point = rand(1:mc.lattice.size) # pick random index
-            old_spin = get_spin(mc.lattice.spins, point) # store old spin 
-            delta_E = calculate_energy_diff!(mc.lattice, point) 
-    
-            accept = delta_E < 0 ? true : rand() < exp(-(delta_E) / T)
-            if !accept
-                set_spin!(mc.lattice.spins, old_spin, point) 
-            else 
-                accept_rate += 1 
-            end
-            sweep += 1 
+        accept = (delta_E-(new_lambda * constraint)) < 0 ? true : rand() < exp(-(delta_E-(new_lambda * constraint)) / T)
+        if !accept
+            set_spin!(mc.lattice.spins, old_spin, point) 
+        else 
+            accept_rate += 1 
+            mc.lambda = new_lambda 
         end
-    else
-        while sweep < mc.lattice.size
-            point = rand(1:mc.lattice.size) # pick random index
-            old_spin = get_spin(mc.lattice.spins, point) # store old spin 
-            delta_E = calculate_energy_diff!(mc.lattice, point) 
-            constraint = mc.constraint(mc.lattice)
-            new_lambda = mc.lambda - mc.weight * constraint
-    
-            accept = (delta_E-(new_lambda * constraint)) < 0 ? true : rand() < exp(-(delta_E-(new_lambda * constraint)) / T)
-            if !accept
-                set_spin!(mc.lattice.spins, old_spin, point) 
-            else 
-                accept_rate += 1 
-                mc.lambda = new_lambda 
-            end
-            sweep += 1 
-        end
+        sweep += 1 
     end
-
     return accept_rate
 end
 
