@@ -66,6 +66,29 @@ function overrelaxation!(lattice::Lattice)
     end
 end
 
+function metropolis_constraint!(mc::MonteCarlo, T::Float64)
+    accept_rate = 0.0
+    # perform local updates and sweep through lattice
+    sweep = 0
+    while sweep < mc.lattice.size
+        point = rand(1:mc.lattice.size) # pick random index
+        old_spin = get_spin(mc.lattice.spins, point) # store old spin 
+        delta_E = calculate_energy_diff!(mc.lattice, point) 
+        c = mc.constraint(mc.lattice)
+        new_lambda = mc.lambda - mc.weight * c
+
+        accept = (delta_E-(new_lambda * c)) < 0 ? true : rand() < exp(-(delta_E-(new_lambda * c)) / T)
+        if !accept
+            set_spin!(mc.lattice.spins, old_spin, point) 
+        else 
+            accept_rate += 1 
+            mc.lambda = new_lambda 
+        end
+        sweep += 1 
+    end
+    return accept_rate
+end
+
 function metropolis!(mc::MonteCarlo, T::Float64)
     accept_rate = 0.0
     # perform local updates and sweep through lattice
@@ -74,15 +97,11 @@ function metropolis!(mc::MonteCarlo, T::Float64)
         point = rand(1:mc.lattice.size) # pick random index
         old_spin = get_spin(mc.lattice.spins, point) # store old spin 
         delta_E = calculate_energy_diff!(mc.lattice, point) 
-        constraint = mc.constraint(mc.lattice)
-        new_lambda = mc.lambda - mc.weight * constraint
-
-        accept = (delta_E-(new_lambda * constraint)) < 0 ? true : rand() < exp(-(delta_E-(new_lambda * constraint)) / T)
+        accept = (delta_E) < 0 ? true : rand() < exp(-(delta_E) / T)
         if !accept
             set_spin!(mc.lattice.spins, old_spin, point) 
         else 
             accept_rate += 1 
-            mc.lambda = new_lambda 
         end
         sweep += 1 
     end
@@ -96,6 +115,12 @@ function simulated_annealing!(mc::MonteCarlo, schedule, T0::Float64=1.0, path=""
     T = T0
     time = 1
     out = length(path) > 0
+
+    if mc.weight != 0
+        met = metropolis_constraint!
+    else
+        met = metropolis!
+    end
 
     # check if configuration file exists. if not, create it 
     if out
@@ -112,7 +137,7 @@ function simulated_annealing!(mc::MonteCarlo, schedule, T0::Float64=1.0, path=""
         while t < mc.parameters.t_thermalization
             overrelaxation!(mc.lattice)
             if t % mc.parameters.OR == 0
-                metropolis!(mc, T)
+                met(mc, T)
             end
             t += 1
         end
@@ -169,6 +194,12 @@ function parallel_tempering!(mc::MonteCarlo, path="", saveIC=[])
         end
     end
 
+    if mc.weight != 0 
+        met = metropolis_constraint!
+    else
+        met = metropolis!
+    end
+
     # generate initial spins and initialize energy  
     E = total_energy(mc.lattice)
     new_spins = similar(mc.lattice.spins)
@@ -200,7 +231,7 @@ function parallel_tempering!(mc::MonteCarlo, path="", saveIC=[])
 
         if mc.sweep % mc.parameters.OR == 0
             # local metroppolis updates 
-            accepted_local += metropolis!(mc, mc.T)
+            accepted_local += met(mc, mc.T)
             E = total_energy(mc.lattice)
 
             # attempt exchange
