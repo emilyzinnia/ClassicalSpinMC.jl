@@ -11,6 +11,7 @@ struct MDbuffer
     tt::Array{Float64, 1}
     freq::Array{Float64, 1}
     ks::Array{Float64, 2}
+    alpha::Float64
 end
 
 function get_tt_freq(tstep::Float64=0.01, tmin::Float64=0.0, tmax::Float64=0.5)
@@ -21,10 +22,10 @@ function get_tt_freq(tstep::Float64=0.01, tmin::Float64=0.0, tmax::Float64=0.5)
     return tt, freq
 end 
 
-function MD_buffer(ks::Array{Float64}, tstep::Float64=0.01, tmin::Float64=0.0, tmax::Float64=100.0)::MDbuffer
+function MD_buffer(ks::Array{Float64}, tstep::Float64=0.01, tmin::Float64=0.0, tmax::Float64=100.0, alpha::Float64=0.0)::MDbuffer
     # frequencies
     tt, freq = get_tt_freq(tstep, tmin, tmax)
-    return MDbuffer(tstep, tmin, tmax, tt, freq, ks)
+    return MDbuffer(tstep, tmin, tmax, tt, freq, ks, alpha)
 end
 
 function timeEvolve!(du, u, p, t)
@@ -32,6 +33,7 @@ function timeEvolve!(du, u, p, t)
     interaction_sites = p[2] # interaction sites 
     interaction_matrices = p[3] # interaction matrices
     hs = p[4] # field 
+    alpha = p[5] # damping parameter 
     for i=1:N
         js = interaction_sites[i]
         Js = interaction_matrices[i]
@@ -47,25 +49,28 @@ function timeEvolve!(du, u, p, t)
             uy = u[3j-1]
             uz = u[3j]
 
-            Hx += J.m11 * ux + J.m12 * uy + J.m13 * uz
-            Hy += J.m21 * ux + J.m22 * uy + J.m23 * uz
-            Hz += J.m31 * ux + J.m32 * uy + J.m33 * uz
+            Hx += 2*(J.m11 * ux + J.m12 * uy + J.m13 * uz)
+            Hy += 2*(J.m21 * ux + J.m22 * uy + J.m23 * uz)
+            Hz += 2*(J.m31 * ux + J.m32 * uy + J.m33 * uz)
         end
         # field term 
         Hx += -h[1]
         Hy += -h[2]
         Hz += -h[3] 
         # components are stored in multiples of i
-        du[3i-2] = (u[3i-1] * Hz - u[3i] * Hy)
-        du[3i-1] =(u[3i] * Hx - u[3i-2] * Hz)
-        du[3i] = (u[3i-2] * Hy - u[3i-1] * Hx)
+        px= (u[3i-1] * Hz - u[3i] * Hy)
+        py= (u[3i] * Hx - u[3i-2] * Hz)
+        pz= (u[3i-2] * Hy - u[3i-1] * Hx)
+        du[3i-2] = (u[3i-1] * (Hz + alpha*pz) - u[3i] * (Hy + alpha*py) )
+        du[3i-1] =(u[3i] * (Hx + alpha*px) - u[3i-2] * (Hz + alpha*pz))
+        du[3i] = (u[3i-2] * (Hy + alpha*py) - u[3i-1] * (Hx + alpha*px))
     end
 end
 
 function compute_time_evolution(lat::Lattice, md::MDbuffer, alg=Tsit5(), tol::Float64=1e-7)
     # time evolve the spins 
     s0 = vcat(lat.spins...)   # flatten to vector of (Sx1, Sy1, Sz1...)
-    params = [lat.size, lat.interaction_sites, lat.interaction_matrices, lat.field]
+    params = [lat.size, lat.interaction_sites, lat.interaction_matrices, lat.field, md.alpha]
     ks = md.ks
     N_k = size(ks)[2]
     pos = lat.site_positions
@@ -228,7 +233,7 @@ function runStaticStructureFactor!(path, lat::Lattice, ks::Matrix{Float64}, over
 end
 
 function runMolecularDynamics!(path, tstep, tmin, tmax, lat::Lattice, ks::Matrix{Float64}, alg=Tsit5(), tol::Float64=1e-7,
-                               override=false)
+                               override=false; alpha::Float64=0.0)
     # initialize MPI parameters 
     rank = 0
     commSize = 1
@@ -258,7 +263,7 @@ function runMolecularDynamics!(path, tstep, tmin, tmax, lat::Lattice, ks::Matrix
     commSize > 1 && MPI.Allgather!(MPI.IN_PLACE, N_rank, 1, MPI.COMM_WORLD) 
 
     IC = rank == 0 ? 0 : sum(N_rank[1:rank])
-    MD = MD_buffer(ks, tstep, tmin, tmax)
+    MD = MD_buffer(ks, tstep, tmin, tmax, alpha)
 
     for i in 1:N_per_rank
         # initialize lattice object from hdf5 file 
