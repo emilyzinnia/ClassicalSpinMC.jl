@@ -29,15 +29,28 @@ mutable struct MonteCarlo
     MonteCarlo() = new()
 end
 
+function MCParamsBuffer(dict::Dict{String,Int64})::SimulationParameters
+    allowed_keys = ["t_thermalization", "t_measurement", "probe_rate", "swap_rate", "OR", "report_interval", "checkpoint_rate"]
+    default_vals = [1, 1, 1, 1, 1, 0, 0]
+    ordered_vals = []
+    for (i,key) in enumerate(allowed_keys)
+        if !(key in keys(dict))
+            dict[key] = default_vals[i]
+        end
+        push!(ordered_vals, dict[key])
+    end
+    return SimulationParameters(ordered_vals...)
+end 
+
 #MonteCarlo wrapper
-function MonteCarlo(T::Float64, lattice::Lattice, parameters::SimulationParameters, 
+function MonteCarlo(T::Float64, lattice::Lattice, parameters::Dict{String,Int64}, 
     ;inparams::Dict{String,Float64}=Dict{String,Float64}(), constraint=x->0.0, weight::Float64=0.0)::MonteCarlo
     mc = MonteCarlo()
     mc.T = T 
     mc.sweep = 0
     mc.observables = Observables()
     mc.lattice = deepcopy(lattice)
-    mc.parameters = deepcopy(parameters)
+    mc.parameters = MCParamsBuffer(parameters)
     mc.input_parameters = deepcopy(inparams)
     mc.roundtripMarker = 1.0
     mc.lambda = 0.0
@@ -111,7 +124,7 @@ end
 """
 Slow annealing from high temperature to desired temperature.
 """
-function simulated_annealing!(mc::MonteCarlo, schedule, T0::Float64=1.0, path="", rank::Int=0)
+function simulated_annealing!(mc::MonteCarlo, schedule, T0::Float64=1.0, path="")
     T = T0
     time = 1
     out = length(path) > 0
@@ -120,6 +133,16 @@ function simulated_annealing!(mc::MonteCarlo, schedule, T0::Float64=1.0, path=""
         met = metropolis_constraint!
     else
         met = metropolis!
+    end
+
+    # initialize MPI parameters 
+    if MPI.Initialized()
+        comm = MPI.COMM_WORLD
+        commSize = MPI.Comm_size(comm)
+        rank = MPI.Comm_rank(comm)
+    else
+        rank = 0
+        commSize = 1
     end
 
     # check if configuration file exists. if not, create it 
@@ -322,8 +345,6 @@ function parallel_tempering!(mc::MonteCarlo, path="", saveIC=[])
             output_stats[2] = exchange_rate
             print_runtime_statistics!(mc, output_stats, enableMPI)
         end
-
-
     end
 
     if out

@@ -1,7 +1,7 @@
 using .Iterators
 using Random
 
-mutable struct Lattice{D,N,R}
+mutable struct Lattice{D,N2,N3,N4}
     S::Real
     spins::Array{Float64,2}
     unit_cell::UnitCell{D}
@@ -10,16 +10,18 @@ mutable struct Lattice{D,N,R}
     shape::NTuple{D, Int64}      # shape of the bravais lattice 
     site_positions::Array{Float64, 2} # site positions 
 
-    interaction_sites::Vector{NTuple{N, Int64}}
-    interaction_matrices::Vector{NTuple{N,InteractionMatrix}}
-    ring_exchange_sites::Vector{NTuple{R, NTuple{3, Int64}}}
-    ring_exchange_tensors::NTuple{R, Array{Float64, 4}}
+    # Hamiltonian interaction lookups 
+    bilinear_sites::Vector{NTuple{N2, Int64}}
+    bilinear_matrices::Vector{NTuple{N2,InteractionMatrix}}
+    cubic_sites::Vector{NTuple{N3, NTuple{2, Int64}}}
+    cubic_tensors::NTuple{N3, Array{Float64, 3}}
+    quartic_sites::Vector{NTuple{N4, NTuple{3, Int64}}}
+    quartic_tensors::NTuple{N4, Array{Float64, 4}}
     field::Vector{NTuple{3,Float64}}
-
-    Lattice(D,N,R) = new{D,N,R}()
+    Lattice(D,N2,N3,N4) = new{D,N2,N3,N4}()
 end
 
-# creates a list of site indices
+"""Creates a list of site indices"""
 function site_indices(shape::NTuple{D,Int64}, basis::Int64=1) where D 
     ranges = [ 1:N for N in shape]
     sites = [product(1:basis, ranges...)...]
@@ -27,26 +29,21 @@ function site_indices(shape::NTuple{D,Int64}, basis::Int64=1) where D
 end
 
 function compute_site_positions(uc::UnitCell{D}, size::NTuple{D,Int64}) where D
-
     N_sites = prod(size) * length(uc.basis)
-
     #site positions 
     indices = site_indices(size, length(uc.basis))
     as = uc.lattice_vectors
     basis = uc.basis 
-    
     site_positions = Array{Float64,2}(undef, D, N_sites)
-
     for i in 1:N_sites
         #set site positions
         site_positions[:, i] =  sum( [ (indices[i][d+1]-1) * as[d] for d in 1:D])
         site_positions[:, i] .+= basis[indices[i][1]]
     end
-
     return site_positions
 end
 
-#wrapper for Lattice object 
+"""Wrapper for creating Lattice object """
 function lattice(size::NTuple{D,Int64}, uc::UnitCell{D}, 
                 S::Real=1/2; bc::Symbol=:periodic, initialCondition::Symbol=:random) where D
     
@@ -70,45 +67,17 @@ function lattice(size::NTuple{D,Int64}, uc::UnitCell{D},
     end
 
     indices = site_indices(size, length(uc.basis))
-    N = length(uc.interactions)
-    R = length(uc.ringexchange)
+    N2 = length(uc.bilinear)
+    N3 = length(uc.cubic)
+    N4 = length(uc.quartic)
 
-    lat = Lattice(D,N,R)
+    lat = Lattice(D,N2,N3,N4)
     lat.S = S
     lat.shape = size
     lat.size = N_sites
     lat.spins = spins 
     lat.unit_cell = uc
     lat.site_positions = compute_site_positions(uc, size)
-    # lat.field = field
-
-    lat.field = Vector{NTuple{3,Float64}}(undef, 0)
-    lat.interaction_sites = Vector{NTuple{N, Int64}}(undef, 0)
-    lat.interaction_matrices = Vector{NTuple{N,InteractionMatrix}}(undef, 0)
-
-    # if no ring exchange terms, make empty matrix 
-    lat.ring_exchange_sites = Vector{NTuple{R, NTuple{3, Int64}}}(undef, 0)
-    
-    # if no field specified, set each field to zero on each sublattice 
-    # create a matrix containing the field for each basis vector in order 
-    f_indices = [uc.field[i][1] for i in 1:length(uc.field)]
-    f_ = [uc.field[i][2] for i in 1:length(uc.field)]
-    field = Matrix{Float64}(undef, 3, length(uc.basis))
-    for i in 1:length(uc.basis)
-        if !(i in f_indices)
-            field[:,i] .= [0.0, 0.0, 0.0]
-        else
-            field[:,f_indices[i]] .= f_[i]
-        end
-    end
-    # get interactions for each site 
-    interactions = uc.interactions
-    ring = uc.ringexchange
-    lat.ring_exchange_tensors = tuple([ring[r][1] for r=1:R ]...)
-
-    s_ = Vector{Int64}(undef, N)
-    M_ = Vector{InteractionMatrix}(undef, N)
-    r_ = Vector{NTuple{3, Int64}}(undef, R)
 
     function BC(index, offset)
         if bc == :periodic
@@ -120,6 +89,44 @@ function lattice(size::NTuple{D,Int64}, uc::UnitCell{D},
         end
     end
 
+    ########################################
+    # initialize interaction lookup tables 
+    ########################################
+    # set Zeeman field 
+    # if no field specified, set each field to zero on each sublattice 
+    # create a matrix containing the field for each basis vector in order 
+    lat.field = Vector{NTuple{3,Float64}}(undef, 0)
+    f_indices = [uc.field[i][1] for i in 1:length(uc.field)]
+    f_ = [uc.field[i][2] for i in 1:length(uc.field)]
+    field = Matrix{Float64}(undef, 3, length(uc.basis))
+    for i in 1:length(uc.basis)
+        if !(i in f_indices)
+            field[:,i] .= [0.0, 0.0, 0.0]
+        else
+            field[:,f_indices[i]] .= f_[i]
+        end
+    end
+
+    # initialize interaction terms 
+    lat.bilinear_sites = Vector{NTuple{N2, Int64}}(undef, 0)
+    lat.bilinear_matrices = Vector{NTuple{N2,InteractionMatrix}}(undef, 0)
+    lat.cubic_sites = Vector{NTuple{N3, NTuple{2, Int64}}}(undef, 0)
+    lat.quartic_sites = Vector{NTuple{N4, NTuple{3, Int64}}}(undef, 0)
+    
+    # get interactions for each site 
+    bilinear = uc.bilinear
+    cubic = uc.cubic
+    quartic = uc.quartic
+
+    printstyled("WARNING: "; color = :yellow)
+    println("Cubic and quartic interactions untested for unit cells with more than one basis site. Use with caution.")
+    lat.cubic_tensors = tuple([cubic[r][1] for r=1:N3 ]...)
+    lat.quartic_tensors = tuple([quartic[r][1] for r=1:N4 ]...)
+
+    s2_ = Vector{Int64}(undef, N2)                  # bilinear site indices
+    M2_ = Vector{InteractionMatrix}(undef, N2)      # bilinear interaction matrices
+    s3_ = Vector{NTuple{2, Int64}}(undef, N3)       # cubic site indices
+    s4_ = Vector{NTuple{3, Int64}}(undef, N4)       # quartic site indices
 
     for i in 1:N_sites
         index = indices[i]
@@ -128,8 +135,8 @@ function lattice(size::NTuple{D,Int64}, uc::UnitCell{D},
         push!(lat.field, tuple(field[:,index[1]]...))
 
         # for each interaction term, obtain interaction matrix and index 
-        for term in 1:N
-            b1, b2, M, offset = interactions[term]
+        for term in 1:N2
+            b1, b2, M, offset = bilinear[term]
             if b1 == b2
                 bj = index[1] 
                 sign = 1
@@ -141,37 +148,43 @@ function lattice(size::NTuple{D,Int64}, uc::UnitCell{D},
                 sign = -1
                 M = transposeJ(M)
             end
-
-            # new_ind = mod.( index[2:end].+ (sign.*offset) .-1, size) .+1
             new_ind = BC(index, sign.*offset)
             j = findfirst(x->x == (bj, new_ind...), indices)
             if !isnothing(j)
-                s_[term] = j
-                M_[term] = M
-            else
-                s_[term] = 1
-                M_[term] = InteractionMatrix(zeros(Float64, 3, 3))
+                s2_[term] = j
+                M2_[term] = M
+            else # open BC 
+                s2_[term] = 1
+                M2_[term] = InteractionMatrix(zeros(Float64, 3, 3))
             end
         end
         push!(lat.interaction_sites, tuple(s_...))
         push!(lat.interaction_matrices, tuple(M_...))
         
-        # for each ring exchange term, find neighbours and equivalent interaction tensor
-        for term in 1:R
-            J, j_offset, k_offset, l_offset = ring[term]
-            # j = findfirst(x->x == (1, (mod.( index[2:end].+ j_offset .-1, size) .+1)...), indices)
-            # k = findfirst(x->x == (1, (mod.( index[2:end].+ k_offset .-1, size) .+1)...), indices)
-            # l = findfirst(x->x == (1, (mod.( index[2:end].+ l_offset .-1, size) .+1)...), indices)
-            j = findfirst(x->x == (1, BC(index, j_offset)...), indices)
-            k = findfirst(x->x == (1, BC(index, k_offset)...), indices)
-            l = findfirst(x->x == (1, BC(index, l_offset)...), indices)
-            if isnothing(j) | isnothing(k) | isnothing(l)
-                error("Open BC not implemented for ring exchange")
+        # for each cubic term, find neighbours and equivalent interaction tensor
+        for term in 1:N3
+            b1, b2, b3, J, j_offset, k_offset = cubic[term]
+            j = findfirst(x->x == (b2, BC(index, j_offset)...), indices)
+            k = findfirst(x->x == (b3, BC(index, k_offset)...), indices)
+            if isnothing(j) | isnothing(k) 
+                error("Open BC not implemented for cubic")
             end
-            r_[term] = (j, k, l)
+            s3_[term] = (j, k)
         end
+        push!(lat.cubic_sites, tuple(s3_...))
 
-        push!(lat.ring_exchange_sites, tuple(r_...))
+        # for each quartic term, find neighbours and equivalent interaction tensor
+        for term in 1:N4
+            b1, b2, b3, b4, J, j_offset, k_offset, l_offset = quartic[term]
+            j = findfirst(x->x == (b2, BC(index, j_offset)...), indices)
+            k = findfirst(x->x == (b3, BC(index, k_offset)...), indices)
+            l = findfirst(x->x == (b4, BC(index, l_offset)...), indices)
+            if isnothing(j) | isnothing(k) | isnothing(l)
+                error("Open BC not implemented for quartic")
+            end
+            s4_[term] = (j, k, l)
+        end
+        push!(lat.quartic_sites, tuple(s4_...))
     end 
 
     return lat
@@ -195,18 +208,22 @@ function random_spin_orientation(S::Real, rng=Random.GLOBAL_RNG)::NTuple{3, Floa
     return S .* (r*cos(phi), r*sin(phi), z)
 end
 
-function get_field(lat::Lattice{D,N,R}, point::Int64)::NTuple{3, Float64} where{D,N,R}
+function get_field(lat::Lattice{D,N2,N3,N4}, point::Int64)::NTuple{3, Float64} where{D,N2,N3,N4}
     return lat.field[point]
 end
 
-function get_interaction_sites(lat::Lattice{D,N,R}, point::Int64)::NTuple{N, Int64} where{D,N,R}
-    return lat.interaction_sites[point]
+function get_bilinear_sites(lat::Lattice{D,N2,N3,N4}, point::Int64)::NTuple{N2, Int64} where{D,N2,N3,N4}
+    return lat.bilinear_sites[point]
 end
 
-function get_interaction_matrices(lat::Lattice{D,N,R}, point::Int64)::NTuple{N,InteractionMatrix} where{D,N,R}
-    return lat.interaction_matrices[point]
+function get_bilinear_matrices(lat::Lattice{D,N2,N3,N4}, point::Int64)::NTuple{N2,InteractionMatrix} where{D,N2,N3,N4}
+    return lat.bilinear_matrices[point]
 end
 
-function get_ring_exchange_sites(lat::Lattice{D,N,R}, point::Int64)::NTuple{R, NTuple{3, Int64}} where{D,N,R}
-    return lat.ring_exchange_sites[point]
+function get_cubic_sites(lat::Lattice{D,N2,N3,N4}, point::Int64)::NTuple{N3, NTuple{2, Int64}} where{D,N2,N3,N4}
+    return lat.cubic_sites[point]
+end
+
+function get_quartic_sites(lat::Lattice{D,N2,N3,N4}, point::Int64)::NTuple{N4, NTuple{3, Int64}} where{D,N2,N3,N4}
+    return lat.quartic_sites[point]
 end
