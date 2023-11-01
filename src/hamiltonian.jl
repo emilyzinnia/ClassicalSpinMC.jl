@@ -73,7 +73,7 @@ function total_energy(lattice::Lattice)
                             s[3] * (J.m31 * sj[1] + J.m32 * sj[2] + J.m33 * sj[3]) 
         end
 
-        # ring exchange term 
+        # cubic term
         for n in eachindex(cs)
             C = Cs[n]
             j, k = cs[n]
@@ -82,7 +82,7 @@ function total_energy(lattice::Lattice)
             @einsum E_cubic += C[a, b, c] * s[a] * sj[b] * sk[c]
         end
 
-        # ring exchange term 
+        # quartic term 
         for n in eachindex(rs)
             R = Rs[n]
             j, k, l = rs[n]
