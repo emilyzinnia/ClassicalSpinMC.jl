@@ -158,8 +158,8 @@ function lattice(size::NTuple{D,Int64}, uc::UnitCell{D},
                 M2_[term] = InteractionMatrix(zeros(Float64, 3, 3))
             end
         end
-        push!(lat.interaction_sites, tuple(s_...))
-        push!(lat.interaction_matrices, tuple(M_...))
+        push!(lat.bilinear_sites, tuple(s2_...))
+        push!(lat.bilinear_matrices, tuple(M2_...))
         
         # for each cubic term, find neighbours and equivalent interaction tensor
         for term in 1:N3

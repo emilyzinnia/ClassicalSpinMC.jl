@@ -4,7 +4,7 @@ module ClassicalSpinMC
 include("interaction_matrix.jl")
 
 include("unit_cell.jl")
-export UnitCell, addBasisSite!, addInteraction!, addRingExchange!, addZeemanCoupling!
+export UnitCell, addBasisSite!, addBilinear!, addCubic!, addQuartic!, addZeemanCoupling!
 
 include("reciprocal.jl")
 export get_allowed_wavevectors, get_k_path, get_k_plane
