@@ -115,9 +115,9 @@ function lattice(size::NTuple{D,Int64}, uc::UnitCell{D},
         end
 
         if !(i in onsite_indices)
-            onsite_[i] .= InteractionMatrix(zeros(Float64, 3, 3))
+            onsite_[i] = InteractionMatrix(zeros(Float64, 3, 3))
         else
-            onsite_[onsite_indices[i]] .= onsite_matrices[i]
+            onsite_[onsite_indices[i]] = onsite_matrices[i]
         end 
     end
 
@@ -147,7 +147,7 @@ function lattice(size::NTuple{D,Int64}, uc::UnitCell{D},
         
         # add local zeeman coupling 
         push!(lat.field, tuple(field[:,index[1]]...))
-        push!(lat.onsite, onsite[index[1]])
+        push!(lat.onsite, onsite_[index[1]])
 
         # for each interaction term, obtain interaction matrix and index 
         for term in 1:N2
