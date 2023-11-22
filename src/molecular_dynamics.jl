@@ -49,9 +49,9 @@ function timeEvolve!(du, u, p, t)
             uy = u[3j-1]
             uz = u[3j]
 
-            Hx += 2*(J.m11 * ux + J.m12 * uy + J.m13 * uz)
-            Hy += 2*(J.m21 * ux + J.m22 * uy + J.m23 * uz)
-            Hz += 2*(J.m31 * ux + J.m32 * uy + J.m33 * uz)
+            Hx += (J.m11 * ux + J.m12 * uy + J.m13 * uz)
+            Hy += (J.m21 * ux + J.m22 * uy + J.m23 * uz)
+            Hz += (J.m31 * ux + J.m32 * uy + J.m33 * uz)
         end
         # field term 
         Hx += -h[1]
