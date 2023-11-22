@@ -11,6 +11,7 @@ mutable struct Lattice{D,N2,N3,N4}
     site_positions::Array{Float64, 2} # site positions 
 
     # Hamiltonian interaction lookups 
+    onsite::Vector{InteractionMatrix}
     bilinear_sites::Vector{NTuple{N2, Int64}}
     bilinear_matrices::Vector{NTuple{N2,InteractionMatrix}}
     cubic_sites::Vector{NTuple{N3, NTuple{2, Int64}}}
@@ -96,15 +97,28 @@ function lattice(size::NTuple{D,Int64}, uc::UnitCell{D},
     # if no field specified, set each field to zero on each sublattice 
     # create a matrix containing the field for each basis vector in order 
     lat.field = Vector{NTuple{3,Float64}}(undef, 0)
+    lat.onsite = Vector{InteractionMatrix}(undef, 0)
+
     f_indices = [uc.field[i][1] for i in 1:length(uc.field)]
     f_ = [uc.field[i][2] for i in 1:length(uc.field)]
     field = Matrix{Float64}(undef, 3, length(uc.basis))
+
+    onsite_indices = [uc.onsite[i][1] for i in 1:length(uc.onsite)]
+    onsite_matrices = [uc.onsite[i][2] for i in 1:length(uc.onsite)]
+    onsite_ = Vector{InteractionMatrix}(undef, length(uc.basis))
+
     for i in 1:length(uc.basis)
         if !(i in f_indices)
             field[:,i] .= [0.0, 0.0, 0.0]
         else
             field[:,f_indices[i]] .= f_[i]
         end
+
+        if !(i in onsite_indices)
+            onsite_[i] .= InteractionMatrix(zeros(Float64, 3, 3))
+        else
+            onsite_[onsite_indices[i]] .= onsite_matrices[i]
+        end 
     end
 
     # initialize interaction terms 
@@ -133,6 +147,7 @@ function lattice(size::NTuple{D,Int64}, uc::UnitCell{D},
         
         # add local zeeman coupling 
         push!(lat.field, tuple(field[:,index[1]]...))
+        push!(lat.onsite, onsite[index[1]])
 
         # for each interaction term, obtain interaction matrix and index 
         for term in 1:N2
@@ -206,6 +221,10 @@ function random_spin_orientation(S::Real, rng=Random.GLOBAL_RNG)::NTuple{3, Floa
     z = 2.0 * rand(rng) - 1.0;
     r = sqrt(1.0 - z*z)
     return S .* (r*cos(phi), r*sin(phi), z)
+end
+
+function get_onsite(lat::Lattice{D,N2,N3,N4}, point::Int64)::InteractionMatrix where{D,N2,N3,N4}
+    return lat.onsite[point]
 end
 
 function get_field(lat::Lattice{D,N2,N3,N4}, point::Int64)::NTuple{3, Float64} where{D,N2,N3,N4}

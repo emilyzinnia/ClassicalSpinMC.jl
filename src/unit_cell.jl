@@ -4,12 +4,14 @@ struct UnitCell{D}
     lattice_vectors::NTuple{D, Vector{Float64}}
     basis::Vector{Vector{Float64}}
     field::Vector{ Tuple{Int64, Vector{Float64}} }
+    onsite::Vector{ Tuple{Int64, InteractionMatrix}}
     bilinear::Vector{ Tuple{Int64, Int64, InteractionMatrix, NTuple{D, Int64}}}
     cubic::Vector{  Tuple{Int64, Int64, Int64, Array{Float64, 3}, NTuple{D, Int64}, NTuple{D, Int64}}}
     quartic::Vector{ Tuple{Int64, Int64, Int64, Int64, Array{Float64, 4}, NTuple{D, Int64}, NTuple{D, Int64}, NTuple{D, Int64}}}
 
     UnitCell(as...) = new{length(as)}(as, Vector{Vector{Float64}}(undef,0), 
                     Vector{ Tuple{Int64, Vector{Float64}}}(undef, 0),
+                    Vector{ Tuple{Int64, InteractionMatrix}}(undef, 0), 
                     Vector{ Tuple{Int64, Int64, InteractionMatrix, NTuple{length(as), Int64}}}(undef,0),
                     Vector{ Tuple{Int64, Int64, Int64, Array{Float64, 3}, NTuple{length(as), Int64}, NTuple{length(as), Int64}}}(undef,0),
                     Vector{ Tuple{Int64, Int64, Int64, Int64, Array{Float64, 4}, NTuple{length(as), Int64}, NTuple{length(as), Int64}, NTuple{length(as), Int64}}}(undef,0))
@@ -22,6 +24,13 @@ end
 """Add Zeeman coupling on basis site b1"""
 function addZeemanCoupling!(uc::UnitCell{D}, b1::Int64, h::Vector{Float64}) where D
     push!(uc.field, (b1, h))
+end
+
+"""Add on-site coupling on basis site b1"""
+function addOnSite!(uc::UnitCell{D}, b1::Int64, M::Matrix{Float64}) where D
+    if !iszero(M)
+        push!(uc.onsite, (b1, InteractionMatrix(M)))
+    end
 end
 
 """Add bilinear interaction between basis site b1 and b2, with offset denoting the unit cell offset."""

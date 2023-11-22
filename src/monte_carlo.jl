@@ -18,8 +18,6 @@ mutable struct MonteCarlo
     T::Float64    # temperature
     sweep::Int64   
     lambda::Float64  # total penalty imposed by constraints
-
-    input_parameters::Dict{String,Float64}
     parameters::SimulationParameters
     observables::Observables
     lattice::Lattice 
@@ -43,15 +41,13 @@ function MCParamsBuffer(dict::Dict{String,Int64})::SimulationParameters
 end 
 
 #MonteCarlo wrapper
-function MonteCarlo(T::Float64, lattice::Lattice, parameters::Dict{String,Int64}, 
-    ;inparams::Dict{String,Float64}=Dict{String,Float64}(), constraint=x->0.0, weight::Float64=0.0)::MonteCarlo
+function MonteCarlo(T::Float64, lattice::Lattice, parameters::Dict{String,Int64}; constraint=x->0.0, weight::Float64=0.0)::MonteCarlo
     mc = MonteCarlo()
     mc.T = T 
     mc.sweep = 0
     mc.observables = Observables()
     mc.lattice = deepcopy(lattice)
     mc.parameters = MCParamsBuffer(parameters)
-    mc.input_parameters = deepcopy(inparams)
     mc.roundtripMarker = 1.0
     mc.lambda = 0.0
     mc.weight = weight

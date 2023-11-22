@@ -6,6 +6,8 @@ function get_local_field(lattice::Lattice, point::Int64)
     @inbounds cs = get_cubic_sites(lattice, point)
     @inbounds rs = get_quartic_sites(lattice, point)
     @inbounds h = get_field(lattice, point)
+    @inbounds o = get_onsite(lattice, point)
+    
     Rs = lattice.quartic_tensors
     Cs = lattice.cubic_tensors
 
@@ -13,6 +15,14 @@ function get_local_field(lattice::Lattice, point::Int64)
     Hx = 0.0
     Hy = 0.0
     Hz = 0.0
+
+    # on-site interaction
+    @inbounds six, siy, siz = get_spin(lattice.spins, point) 
+    @inbounds Hx += 2 * ( o.m11 * six + o.m12 * siy + o.m13 * siz)
+    @inbounds Hy += 2 * ( o.m21 * six + o.m22 * siy + o.m23 * siz)
+    @inbounds Hz += 2 * ( o.m31 * six + o.m32 * siy + o.m33 * siz)
+
+    # bilinear interaction 
     for n in eachindex(js)
         J = Js[n]
         @inbounds sjx, sjy, sjz = get_spin(lattice.spins, js[n])
@@ -21,6 +31,7 @@ function get_local_field(lattice::Lattice, point::Int64)
         @inbounds Hz += J.m31 * sjx + J.m32 * sjy + J.m33 * sjz 
     end
 
+    # cubic interaction 
     for n in eachindex(cs)
         C = Cs[n]
         j, k = cs[n]
@@ -32,6 +43,7 @@ function get_local_field(lattice::Lattice, point::Int64)
         @einsum Hz += C[3, a, b] * sj[a] * sk[b]
     end
 
+    # quadratic interaction 
     for n in eachindex(rs)
         R = Rs[n]
         j, k, l = rs[n]
@@ -53,6 +65,7 @@ function total_energy(lattice::Lattice)
     E_cubic = 0.0
     E_quartic = 0.0
     E_zeeman = 0.0
+    E_onsite = 0.0
     
     Cs = lattice.cubic_tensors
     Rs = lattice.quartic_tensors
@@ -63,8 +76,14 @@ function total_energy(lattice::Lattice)
         @inbounds cs = get_cubic_sites(lattice, point)
         @inbounds rs = get_quartic_sites(lattice, point)
         @inbounds h = get_field(lattice, point)
+        @inbounds o = get_onsite(lattice, point)
+
         s = get_spin(lattice.spins, point)
         E_zeeman -= (s[1] * h[1] + s[2] * h[2] + s[3] * h[3]) 
+        E_onsite += s[1] * (o.m11 * s[1] + o.m12 * s[2] + o.m13 * s[3]) + 
+                    s[2] * (o.m21 * s[1] + o.m22 * s[2] + o.m23 * s[3]) + 
+                    s[3] * (o.m31 * s[1] + o.m32 * s[2] + o.m33 * s[3])  
+
         for n in eachindex(js)
             J = Js[n]
             @inbounds sj = get_spin(lattice.spins, js[n])
@@ -93,7 +112,7 @@ function total_energy(lattice::Lattice)
         end
         
     end
-    return E_bilinear/2 + E_cubic/3 + E_quartic/4 + E_zeeman
+    return E_bilinear/2 + E_cubic/3 + E_quartic/4 + E_zeeman + E_onsite 
 end
 
 function energy_density(lattice::Lattice)
@@ -109,12 +128,18 @@ function energy(lattice::Lattice, point::Int64)::Float64
     @inbounds h = get_field(lattice, point)
     @inbounds Cs = lattice.cubic_tensors
     @inbounds Rs = lattice.quartic_tensors
+    @inbounds o = get_onsite(lattice, point)
 
     s = get_spin(lattice.spins, point)
 
     # sum over all interactions
     E = 0.0
 
+    # onsite term 
+    E += s[1] * (o.m11 * s[1] + o.m12 * s[2] + o.m13 * s[3]) + 
+         s[2] * (o.m21 * s[1] + o.m22 * s[2] + o.m23 * s[3]) + 
+         s[3] * (o.m31 * s[1] + o.m32 * s[2] + o.m33 * s[3])  
+    
     # bilinear term
     for n in eachindex(js)
         J = Js[n]
