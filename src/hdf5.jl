@@ -19,8 +19,6 @@ end
 # dims is the number of measurements that will be taken 
 function initialize_hdf5(filename, mc)
     file = h5open(filename, "w")
-    # dump all input parameters 
-    dump_attributes_hdf5!(file, mc.input_parameters)
     dump_attributes_hdf5!(file, mc.parameters)
     write_attribute(file, "T", mc.T)
     write_attribute(file, "shape", collect(mc.lattice.shape))
