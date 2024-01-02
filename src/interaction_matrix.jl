@@ -17,6 +17,13 @@ function InteractionMatrix(J::T) where T<:AbstractArray
                              J[3, 1], J[3, 2], J[3, 3])
 end
 
+# return Matrix object from InteractionMatrix 
+function Matrix(J::InteractionMatrix)
+    return [J.m11 J.m12 J.m13 
+            J.m21 J.m22 J.m23
+            J.m31 J.m32 J.m33]
+end 
+
 function transposeJ(J::InteractionMatrix)
     return InteractionMatrix(J.m11, J.m21, J.m31, 
                              J.m12, J.m22, J.m32,
