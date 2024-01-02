@@ -38,14 +38,14 @@ function dump_unit_cell!(fid, uc::UnitCell)
     o = create_group(g, "onsite")
     for element in uc.onsite
         b1, mat = element 
-        o[string(b1)] = Matrix(mat) # convert interaction matrix to regular matrix 
+        o[string(b1)] = IMToMatrix(mat) # convert interaction matrix to regular matrix 
     end
 
     # bilinear 
     b = create_group(g, "bilinear")
     for element in uc.bilinear 
         b1, b2, mat, offset = element 
-        b[string("($b1,$b2),$offset")] = Matrix(mat)
+        b[string("($b1,$b2),$offset")] = IMToMatrix(mat)
     end 
 
     # cubic 
@@ -66,7 +66,7 @@ end
 # reads unit_cell group from hdf5.params file and returns unit cell object 
 function read_unit_cell(fid)
     g = fid["unit_cell"]
-    UC = UnitCell(eachrow(read(g["lattice_vectors"]))...)
+    UC = UnitCell(eachcol(read(g["lattice_vectors"]))...)
 
     # basis 
     basis = tuple(eachrow(read(g["basis"]))...)
@@ -105,12 +105,34 @@ function read_unit_cell(fid)
     return UC 
 end
 
+function dump_metadata!(fid, mc)
+    # dump unit cell metadata 
+    dump_unit_cell!(fid, mc.lattice.unit_cell)
+
+    # dump lattice data 
+    l = create_group(fid, "lattice")
+    l["size"] = collect(mc.lattice.shape)
+    l["S"] = mc.lattice.S
+    l["bc"] = mc.lattice.bc
+
+    # dump MC simulation parameters 
+    dump_attributes_hdf5!(fid, mc.parameters)
+end 
+
+# reads lattice group from hdf5.params file and returns Lattice object 
+function read_lattice(fid)
+    l = fid["lattice"]
+    size = tuple(read(l["size"])...)
+    uc = read_unit_cell(fid)
+    S = read(l["S"])
+    bc = read(l["bc"])
+    return lattice(size, uc, S, bc=bc)
+end 
+
 # dims is the number of measurements that will be taken 
 function initialize_hdf5(filename, mc)
     file = h5open(filename, "w")
-    dump_attributes_hdf5!(file, mc.parameters)
     write_attribute(file, "T", mc.T)
-    write_attribute(file, "shape", collect(mc.lattice.shape))
     file["spins"] = mc.lattice.spins
     file["site_positions"] = mc.lattice.site_positions
     close(file)
@@ -124,8 +146,6 @@ end
 
 function write_initial_configuration!(filename::String, mc)
     file = h5open(filename, "w")
-    dump_attributes_hdf5!(file, mc.parameters)
-    write_attribute(file, "shape", collect(mc.lattice.shape[2:end]))
     write_attribute(file, "T", mc.T)
     file["spins"] = mc.lattice.spins 
     close(file)
