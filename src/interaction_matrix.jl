@@ -18,7 +18,7 @@ function InteractionMatrix(J::T) where T<:AbstractArray
 end
 
 # return Matrix object from InteractionMatrix 
-function Matrix(J::InteractionMatrix)
+function IMToMatrix(J::InteractionMatrix)
     return [J.m11 J.m12 J.m13 
             J.m21 J.m22 J.m23
             J.m31 J.m32 J.m33]
