@@ -4,6 +4,8 @@ using Random
 mutable struct Lattice{D,N2,N3,N4}
     S::Real
     spins::Array{Float64,2}
+    unit_cell::UnitCell
+    bc::String
 
     size::Int64      # total number of sites 
     shape::NTuple{D, Int64}      # shape of the bravais lattice 
@@ -73,10 +75,12 @@ function lattice(size::NTuple{D,Int64}, uc::UnitCell{D},
 
     lat = Lattice(D,N2,N3,N4)
     lat.S = S
+    lat.bc = bc 
     lat.shape = size
     lat.size = N_sites
     lat.spins = spins 
     lat.site_positions = compute_site_positions(uc, size)
+    lat.unit_cell = uc 
 
     function BC(index, offset)
         if bc == "periodic"
