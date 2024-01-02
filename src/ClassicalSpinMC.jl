@@ -16,7 +16,7 @@ include("observables.jl")
 export get_magnetization
 
 include("hdf5.jl")
-export overwrite_keys!, dump_attributes_hdf5!, initialize_hdf5, write_MC_checkpoint!
+export overwrite_keys!, dump_attributes_hdf5!, initialize_hdf5, write_MC_checkpoint!, dump_metadata!
 
 include("helper.jl")
 include("monte_carlo.jl")
