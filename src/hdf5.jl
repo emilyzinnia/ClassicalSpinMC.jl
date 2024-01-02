@@ -16,6 +16,95 @@ function dump_attributes_hdf5!(fid, dict::Dict{String,Float64})
     end
 end
 
+# converts tuples of vectors or tuples of other tuples to 2D matrix 
+function tuple_to_matrix(tuple_data)
+    return reshape(collect(Iterators.flatten(tuple_data)), length(tuple_data), length(tuple_data[1]))
+end
+
+function dump_unit_cell!(fid, uc::UnitCell)
+    g = create_group(fid, "unit_cell")
+    # dump unit cell fields to h5 file 
+    g["lattice_vectors"] = tuple_to_matrix(uc.lattice_vectors)
+    g["basis"] = reduce(vcat,transpose.(uc.basis))
+
+    # zeeman field 
+    h = create_group(g, "field")
+    for element in uc.field 
+        basis, vec = element 
+        h[string(basis)] = vec 
+    end 
+
+    # onsite 
+    o = create_group(g, "onsite")
+    for element in uc.onsite
+        b1, mat = element 
+        o[string(b1)] = Matrix(mat) # convert interaction matrix to regular matrix 
+    end
+
+    # bilinear 
+    b = create_group(g, "bilinear")
+    for element in uc.bilinear 
+        b1, b2, mat, offset = element 
+        b[string("($b1,$b2),$offset")] = Matrix(mat)
+    end 
+
+    # cubic 
+    c = create_group(g, "cubic")
+    for element in uc.cubic 
+        b1, b2, b3, cub, o2, o3 = element 
+        c[string("($b1,$b2,$b3),$o2,$o3")] = cub 
+    end 
+
+    # quartic 
+    q = create_group(g, "quartic")
+    for element in uc.quartic 
+        b1, b2, b3, b4, quar, o2, o3, o4 = element 
+        q[string("($b1,$b2,$b3,$b4),$o2,$o3,$o4")] = quar
+    end 
+end
+
+# reads unit_cell group from hdf5.params file and returns unit cell object 
+function read_unit_cell(fid)
+    g = fid["unit_cell"]
+    UC = UnitCell(eachrow(read(g["lattice_vectors"]))...)
+
+    # basis 
+    basis = tuple(eachrow(read(g["basis"]))...)
+    for site in basis 
+        addBasisSite!(UC, collect(site))
+    end
+
+    # Zeeman field 
+    for key in keys(g["field"])
+        addZeemanCoupling!(UC, parse(Int64, key), read(g["field/$key"]))
+    end 
+
+    # onsite 
+    for key in keys(g["onsite"])
+        addOnSite!(UC, parse(Int64, key), read(g["onsite/$key"]))
+    end 
+
+    # bilinear 
+    for key in keys(g["bilinear"])
+        bs, offset = eval(Meta.parse(key))
+        addBilinear!(UC, bs..., read(g["bilinear/$key"]), offset)
+    end 
+
+    # cubic
+    for key in keys(g["cubic"])
+        bs, o2, o3 = eval(Meta.parse(key))
+        addCubic!(UC, bs..., read(g["cubic/$key"]), o2, o3)
+    end 
+
+    # quartic
+    for key in keys(g["quartic"])
+        bs, o2, o3, o4 = eval(Meta.parse(key))
+        addQuartic!(UC, bs..., read(g["quartic/$key"]), o2, o3, o4)
+    end 
+
+    return UC 
+end
+
 # dims is the number of measurements that will be taken 
 function initialize_hdf5(filename, mc)
     file = h5open(filename, "w")
