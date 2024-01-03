@@ -23,13 +23,18 @@ mutable struct Lattice{D,N2,N3,N4}
     Lattice(D,N2,N3,N4) = new{D,N2,N3,N4}()
 end
 
-"""Creates a list of site indices"""
+"""
+Creates a 1D array of site indices sorted by basis, row, then column.
+"""
 function site_indices(shape::NTuple{D,Int64}, basis::Int64=1) where D 
     ranges = [ 1:N for N in shape]
     sites = [product(1:basis, ranges...)...]
     return sort!(sites)  #sort by first element 
 end
 
+"""
+Compute lattice site positions. 
+"""
 function compute_site_positions(uc::UnitCell{D}, size::NTuple{D,Int64}) where D
     N_sites = prod(size) * length(uc.basis)
     #site positions 
@@ -45,8 +50,19 @@ function compute_site_positions(uc::UnitCell{D}, size::NTuple{D,Int64}) where D
     return site_positions
 end
 
-"""Wrapper for creating Lattice object """
-function lattice(size::NTuple{D,Int64}, uc::UnitCell{D}, 
+"""
+Wrapper for creating Lattice object. 
+
+# Arguments
+- `size::NTuple{D,Int64}`: dimensions of lattice for each unit cell, e.g. (4,4) for a 4x4 lattice 
+- `uc::UnitCell{D}`: UnitCell object. 
+- `S::Real=1/2`: magnitude of spin vector. 
+
+# Keyword Arguments
+- `bc::String="periodic"`: boundary conditions; can either be "open" or "periodic". open bc currently only implemented for all boundaries, cannot be partially open/periodic. 
+- `initialCondition::Symbol=:random`: all spins start out in a random configuration. can be `:random` or `:fm` where all spins are aligned in an arbitrary direction. 
+"""
+function Lattice(size::NTuple{D,Int64}, uc::UnitCell{D}, 
                 S::Real=1/2; bc::String="periodic", initialCondition::Symbol=:random) where D
     
     if length(uc.basis) == 0
@@ -217,7 +233,9 @@ function set_spin!(spins::Array{Float64,2}, newspin::NTuple{3, Float64}, point::
     spins[3, point] = newspin[3]
 end
 
-# pick random point on sphere in spin space (Sx, Sy, Sz)
+"""
+Pick random point on sphere in spin space (Sx, Sy, Sz)
+"""
 function random_spin_orientation(S::Real, rng=Random.GLOBAL_RNG)::NTuple{3, Float64}
     phi = 2.0 * pi * rand(rng)
     z = 2.0 * rand(rng) - 1.0;
