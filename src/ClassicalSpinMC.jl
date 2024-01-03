@@ -1,6 +1,5 @@
 module ClassicalSpinMC
 
-
 include("interaction_matrix.jl")
 
 include("unit_cell.jl")
@@ -10,17 +9,18 @@ include("reciprocal.jl")
 export get_allowed_wavevectors, get_k_path, get_k_plane
 
 include("lattice.jl")
-export lattice, set_spin!, random_spin_orientation
+export Lattice, set_spin!, random_spin_orientation
 
 include("observables.jl")
 export get_magnetization
 
-include("hdf5.jl")
-export overwrite_keys!, dump_attributes_hdf5!, initialize_hdf5, write_MC_checkpoint!, dump_metadata!
-
 include("helper.jl")
+
+include("hdf5.jl")
+export overwrite_keys!, write_MC_checkpoint, create_params_file
+
 include("monte_carlo.jl")
-export SimulationParameters, MonteCarlo, simulated_annealing!, deterministic_updates!, parallel_tempering!
+export MonteCarlo, simulated_annealing!, deterministic_updates!, parallel_tempering!
 
 include("hamiltonian.jl")
 export total_energy, energy_density, get_local_field
