@@ -6,10 +6,11 @@ using LinearAlgebra
 
 struct SimulationParameters
     t_thermalization::Int64 # total thermalization sweeps 
+    t_deterministic::Int64 # total deterministic updates 
     t_measurement::Int64 # total measurement sweeps 
     probe_rate::Int64 # rate at which measurements are taken after thermalization
     swap_rate::Int64 # rate at which replica exchanges are attempted 
-    OR::Int64 # ratio of overrelaxation sweeps : metropolis sweeps
+    overrelaxation_rate::Int64 # ratio of overrelaxation sweeps : metropolis sweeps
     report_interval::Int64 
     checkpoint_rate::Int64 # rate at which checkpoints are written as ICs for MD 
 end
@@ -24,12 +25,16 @@ mutable struct MonteCarlo
     roundtripMarker::Float64
     weight::Float64
     constraint::Function      # lagrange multipliers for constraints 
+    outpath::String # absolute path to hdf5 file 
     MonteCarlo() = new()
 end
 
+"""
+Buffer for creating SimulationParameters from a Dict of values. 
+"""
 function MCParamsBuffer(dict::Dict{String,Int64})::SimulationParameters
-    allowed_keys = ["t_thermalization", "t_measurement", "probe_rate", "swap_rate", "OR", "report_interval", "checkpoint_rate"]
-    default_vals = [1, 1, 1, 1, 1, 0, 0]
+    allowed_keys = ["t_thermalization", "t_deterministic","t_measurement", "probe_rate", "swap_rate", "overrelaxation_rate", "report_interval", "checkpoint_rate"]
+    default_vals = [1, 1, 1, 1, 1, 10, 0, 0]
     ordered_vals = []
     for (i,key) in enumerate(allowed_keys)
         if !(key in keys(dict))
@@ -37,11 +42,50 @@ function MCParamsBuffer(dict::Dict{String,Int64})::SimulationParameters
         end
         push!(ordered_vals, dict[key])
     end
+
+    for key in dict
+        if !(key in allowed_keys)
+            printstyled("WARNING: "; color = :yellow)
+            println("'$key' not a valid MC parameter; ignoring")
+        end
+    end
     return SimulationParameters(ordered_vals...)
 end 
 
-#MonteCarlo wrapper
-function MonteCarlo(T::Float64, lattice::Lattice, parameters::Dict{String,Int64}; constraint=x->0.0, weight::Float64=0.0)::MonteCarlo
+"""
+Wrapper for creating a MonteCarlo object. 
+
+# Arguments
+- `T::Float64`: MC target temperature.
+- `lattice::Lattice`: Lattice object. See Lattice documentation. 
+- `parameters::Dict{String,Int64}`: dictionary containing MC parameters. Allowed keys include 
+    - `t_thermalization::Integer`: # of MC thermalization sweeps.
+    - `t_deterministic::Integer`: # of deterministic update sweeps. 
+    - `t_measurement::Integer`: # of MC measurement sweeps.
+    - `probe_rate::Integer`: take a measurement every probe_rate sweeps.
+    - `swap_rate::Integer`: # attempt a replica exchange every swap_rate sweeps.
+    - `overrelaxation_rate::Integer`: # of overrelaxation sweeps to perform for every Metropolis sweep. 
+    - `report_interval::Integer`: print out exchange statistics every report_interval.
+    - `checkpoint_rate::Integer`: rate at which a checkpoint is written, and if specified, 
+    how often an IC is outputted.
+
+# Keyword Arguments 
+- `constraint::Function=x->0.0`: perform Metropolis sweep with specified constraint.
+- `weight::Float64=0.0`: weight of the constraint. if weight is 0, use unconstrained Metropolis function. 
+- `outpath::String=""`: path to directory to write .h5 files to with trailing backslash. 
+if empty string, no files are written. 
+- `outprefix::String="configuration"`: prefix of filename(s) for output. 
+- `inparams::Dict{String,Any}=Dict{String,Any}()`: optional dictionary of simulation parameters for 
+output in .params file. 
+- `overwrite::Bool=true`: flag for overwriting existing files. 
+"""
+function MonteCarlo(T::Float64, lattice::Lattice, parameters::Dict{String,Int64}; 
+                    constraint::Function=x->0.0, weight::Float64=0.0, 
+                    outpath::String="", outprefix::String="configuration", 
+                    inparams::Dict{String,Any}=Dict{String,Any}(),
+                    overwrite::Bool=true)::MonteCarlo
+    
+    # trailing backslash included in outpath
     mc = MonteCarlo()
     mc.T = T 
     mc.sweep = 0
@@ -52,10 +96,45 @@ function MonteCarlo(T::Float64, lattice::Lattice, parameters::Dict{String,Int64}
     mc.lambda = 0.0
     mc.weight = weight
     mc.constraint = constraint 
+
+    # initialize MPI parameters 
+    if MPI.Initialized()
+        comm = MPI.COMM_WORLD
+        commSize = MPI.Comm_size(comm)
+        rank = MPI.Comm_rank(comm)
+    else
+        rank = 0
+        commSize = 1
+    end
+
+    # check if configuration file exists. if not, create it 
+    if length(outpath) > 0 
+        filename=string(outprefix,"_",rank,".h5")
+        rank == 0 && !isdir(string(outpath)) && mkdir( string(outpath) )
+        mc.outpath = string(outpath,filename)
+
+        # create params file if doesn't exist (dumping metadata)
+        if rank == 0 && !isfile(string(mc.outpath,".params")) && overwrite 
+            create_params_file(mc)
+            write_attributes(mc, inparams)
+        end
+
+        # create hdf5 containing initial spin configuration on rank 
+        if !isfile(mc.outpath) && overwrite
+            println("Creating new file $filename for output on rank $rank")
+            initialize_hdf5(mc)
+        end
+    else
+        mc.outpath = outpath # outpath is empty string 
+    end
     return mc
 end
 
-# calculates energy difference. modifies the "spin" matrix
+"""
+Calculates energy difference after choosing a random spin direction on site `point`.
+
+Modifies "spin" matrix in Lattice object. 
+"""
 function calculate_energy_diff!(lattice::Lattice, point::Int64)::Float64
     E_old = energy(lattice, point)
     r = random_spin_orientation(lattice.S)
@@ -65,6 +144,11 @@ function calculate_energy_diff!(lattice::Lattice, point::Int64)::Float64
     return delta_E
 end
 
+"""
+Perform overrelaxation sweep. Reflects spins on each site along local field direction. 
+
+Modifies "spin" matrix in Lattice object. 
+"""
 function overrelaxation!(lattice::Lattice)
     for site=1:lattice.size
         si = get_spin(lattice.spins, site)
@@ -75,6 +159,11 @@ function overrelaxation!(lattice::Lattice)
     end
 end
 
+"""
+Perform Metropolis sweep with specified constraint. 
+
+Returns a count of how many sweeps were accepted for statistics. 
+"""
 function metropolis_constraint!(mc::MonteCarlo, T::Float64)
     accept_rate = 0.0
     # perform local updates and sweep through lattice
@@ -98,6 +187,11 @@ function metropolis_constraint!(mc::MonteCarlo, T::Float64)
     return accept_rate
 end
 
+"""
+Perform Metropolis sweep. 
+
+Returns a count of how many sweeps were accepted for statistics. 
+"""
 function metropolis!(mc::MonteCarlo, T::Float64)
     accept_rate = 0.0
     # perform local updates and sweep through lattice
@@ -119,43 +213,37 @@ end
 
 """
 Slow annealing from high temperature to desired temperature.
+
+Performs `overrelaxation!` and `metropolis!` or `metropolis_constraint!` sweeps at temperature T, 
+then lowers temperature according to annealing schedule. 
+
+# Arguments 
+- `mc::MonteCarlo`: MonteCarlo object containing target temperature mc.T. MC parameters to be specified:  
+    - `t_thermalization`: thermalization time 
+    - `overrelaxation_rate`: overrelaxation rate. by default, a metropolis step is performed 
+    every 10 overrelaxation sweeps. 
+- `schedule::Function`: annealing schedule function for lowering temperature. 
+new T = schedule(time) where time is incremented by 1. 
+- `T0::Float64=1.0`: initial high temperature.
+
 """
-function simulated_annealing!(mc::MonteCarlo, schedule, T0::Float64=1.0, path="")
+function simulated_annealing!(mc::MonteCarlo, schedule::Function, T0::Float64=1.0)
     T = T0
     time = 1
-    out = length(path) > 0
+    out = length(mc.outpath) > 0
 
+    # determine whether to use constrained metropolis or unconstrained
     if mc.weight != 0
         met = metropolis_constraint!
     else
         met = metropolis!
     end
 
-    # initialize MPI parameters 
-    if MPI.Initialized()
-        comm = MPI.COMM_WORLD
-        commSize = MPI.Comm_size(comm)
-        rank = MPI.Comm_rank(comm)
-    else
-        rank = 0
-        commSize = 1
-    end
-
-    # check if configuration file exists. if not, create it 
-    if out
-        filename="configuration_$rank.h5"
-        rank == 0 && !isdir(string(path)) && mkdir( string(path) )
-        if !isfile(string(path,filename))
-            println("Creating new file $filename for output on rank $rank")
-            initialize_hdf5(string(path,filename), mc)
-        end
-    end
-
     while T > mc.T
         t = 1
         while t < mc.parameters.t_thermalization
             overrelaxation!(mc.lattice)
-            if t % mc.parameters.OR == 0
+            if t % mc.parameters.overrelaxation_rate == 0
                 met(mc, T)
             end
             t += 1
@@ -164,17 +252,25 @@ function simulated_annealing!(mc::MonteCarlo, schedule, T0::Float64=1.0, path=""
         time +=1
         if out
             println("Lowering temperature to T=$T on rank $rank and writing checkpoint")
-            write_MC_checkpoint!(string(path,filename), mc)  
+            write_MC_checkpoint(mc)  
         else
             println("Lowering temperature to T=$T")
         end
     end
 end
 
-# aligns spins to local field 
+"""
+Align spins to local field. 
+
+Usually used after annealing to low T(~1e-7) when acceptance rate is low. 
+
+# Arguments 
+- `mc::MonteCarlo`: MonteCarlo object. MC parameters to be specified:  
+    - `t_deterministic`: # of deterministic update sweeps to perform 
+"""
 function deterministic_updates!(mc::MonteCarlo)
     sweeps = 1
-    while sweeps < mc.parameters.t_thermalization
+    while sweeps < mc.parameters.t_deterministic
         point = rand(1:mc.lattice.size) # pick random index
         field = get_local_field(mc.lattice, point)
         set_spin!(mc.lattice.spins, .-field ./ norm(field) .* mc.lattice.S, point)
@@ -182,13 +278,36 @@ function deterministic_updates!(mc::MonteCarlo)
     end
 end
 
-function parallel_tempering!(mc::MonteCarlo, path="", saveIC=[])
+"""
+Performs parallel tempering algorithm. 
+
+Configurations at various temperatures are launched in parallel using MPI. 
+Overrelaxation sweeps and metropolis sweeps are performed for each temperature, 
+and replica exchanges are attempted according to the `swap_rate`.
+
+# Arguments
+- `mc::MonteCarlo`: MonteCarlo object containing target temperature for each rank. MC parameters to be specified
+when initializing MonteCarlo object:  
+    - `t_thermalization`
+    - `t_measurement`
+    - `probe_rate`
+    - `swap_rate`
+    - `overrelaxation_rate`
+    - `report_interval`
+    - `checkpoint_rate`
+- `saveIC::Vector{Int64}=Vector{Int64}[]`: vector containing which ranks to output thermalized 
+configurations on every `checkpoint_rate` sweeps. can be used as initial configurations (IC) for Landau Lifshitz Gilbert calculations. 
+"""
+function parallel_tempering!(mc::MonteCarlo, saveIC::Vector{Int64}=Vector{Int64}[])
     # initialize MPI parameters 
     rank = 0
     commSize = 1
     enableMPI = false
-    out = length(path) > 0
 
+    # write only if outpath specified during initialization of MC object 
+    out = length(mc.outpath) > 0 
+
+    # if MPI initialized, collect temperatures on each rank 
     if MPI.Initialized()
         comm = MPI.COMM_WORLD
         commSize = MPI.Comm_size(comm)
@@ -203,16 +322,6 @@ function parallel_tempering!(mc::MonteCarlo, path="", saveIC=[])
         end
     end
 
-    if out
-        filename="configuration_$rank.h5"
-        rank == 0 && !isdir(string(path)) && mkdir( string(path) )
-        # create new file for output if there isn't already one existing 
-        if !isfile(string(path,filename))
-            println("Creating new file $filename for output on rank $rank")
-            initialize_hdf5(string(path,filename), mc)
-        end
-    end
-
     if mc.weight != 0 
         met = metropolis_constraint!
     else
@@ -224,7 +333,6 @@ function parallel_tempering!(mc::MonteCarlo, path="", saveIC=[])
     new_spins = similar(mc.lattice.spins)
 
     # initialize output MC statistics 
-    
     accepted_local = 0
     exchange_rate = 0
     exchange_rate_prev = 0
@@ -233,8 +341,9 @@ function parallel_tempering!(mc::MonteCarlo, path="", saveIC=[])
     output_stats = [accepted_local, exchange_rate, exchange_rate_prev, s_prev, local_prev]
     accept_arr = [false]
     total_sweeps = mc.parameters.t_thermalization + mc.parameters.t_measurement
-    IC = (length(saveIC) != 0) ? true : false
 
+    IC = length(saveIC) != 0
+    path = dirname(mc.outpath)
     if IC
         any(rank .== saveIC) && println("Initializing IC collection on rank $rank")
         any(rank .== saveIC) && !isdir(string(path, "IC_$rank")) && mkdir( string(path, "IC_$rank") )
@@ -248,7 +357,7 @@ function parallel_tempering!(mc::MonteCarlo, path="", saveIC=[])
         # overrelaxation sweeps
         overrelaxation!(mc.lattice)
 
-        if mc.sweep % mc.parameters.OR == 0
+        if mc.sweep % mc.parameters.overrelaxation_rate == 0
             # local metroppolis updates 
             accepted_local += met(mc, mc.T)
             E = total_energy(mc.lattice)
@@ -315,12 +424,12 @@ function parallel_tempering!(mc::MonteCarlo, path="", saveIC=[])
             # write IC after thermalization
             if mc.sweep % mc.parameters.checkpoint_rate == 0 
                 if out
-                    write_MC_checkpoint!(string(path,filename), mc)
+                    write_MC_checkpoint(mc)
                 end
                 if IC
                     timestep = (mc.sweep - mc.parameters.t_thermalization) ÷ mc.parameters.checkpoint_rate
                     if any(rank .== saveIC)
-                        write_initial_configuration!(string(path,"IC_$rank/IC_$timestep.h5"), mc)
+                        write_initial_configuration(string(path,"IC_$rank/IC_$timestep.h5"), mc)
                     end
                 end
             end 
@@ -346,10 +455,9 @@ function parallel_tempering!(mc::MonteCarlo, path="", saveIC=[])
     if out
         # output observables 
         rank == 0 && @printf("Writing observables on %s.\n", Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
-        write_final_observables!(string(path,filename), mc)
+        write_final_observables(mc)
     end
 
     rank == 0 && @printf("Simulation finished on %s.\n", Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
-    
     return 
 end
