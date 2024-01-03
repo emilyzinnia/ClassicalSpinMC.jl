@@ -73,3 +73,8 @@ function print_runtime_statistics!(mc, output_stats::Vector{Int64}, enableMPI::B
     output_stats[3] = exchange_rate
     output_stats[4] = t
 end
+
+# converts tuples of vectors or tuples of other tuples to 2D matrix 
+function tuple_to_matrix(tuple_data)
+    return reshape(collect(Iterators.flatten(tuple_data)), length(tuple_data), length(tuple_data[1]))
+end

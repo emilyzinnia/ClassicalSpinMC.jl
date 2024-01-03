@@ -1,6 +1,8 @@
 using HDF5
 
-#helper function to dump attributes from compound datatypes to hdf5
+"""
+Helper function to dump attributes from compound datatypes to hdf5. 
+"""
 function dump_attributes_hdf5!(fid, obj)
     input_ = fieldnames(typeof(obj))
     # dump all input parameters 
@@ -9,6 +11,9 @@ function dump_attributes_hdf5!(fid, obj)
     end
 end
 
+"""
+Helper function to dump attributes from dictionaries to hdf5. 
+"""
 function dump_attributes_hdf5!(fid, dict::Dict{String,Float64})
     # dump all input parameters 
     for (key, value) in dict 
@@ -16,11 +21,18 @@ function dump_attributes_hdf5!(fid, dict::Dict{String,Float64})
     end
 end
 
-# converts tuples of vectors or tuples of other tuples to 2D matrix 
-function tuple_to_matrix(tuple_data)
-    return reshape(collect(Iterators.flatten(tuple_data)), length(tuple_data), length(tuple_data[1]))
+"""
+Write user-specified dictionary to h5 file specified by MonteCarlo.outpath.
+"""
+function write_attributes(mc, dict::Dict{String,Float64})
+    f = h5open(string(mc.outpath,".params"), "r+")
+    dump_attributes_hdf5!(f, dict)
+    close(f)
 end
 
+"""
+Dump UnitCell object metadata into h5 file. 
+"""
 function dump_unit_cell!(fid, uc::UnitCell)
     g = create_group(fid, "unit_cell")
     # dump unit cell fields to h5 file 
@@ -63,7 +75,9 @@ function dump_unit_cell!(fid, uc::UnitCell)
     end 
 end
 
-# reads unit_cell group from hdf5.params file and returns unit cell object 
+"""
+Reads unit_cell group from hdf5.params file and returns unit cell object.
+"""
 function read_unit_cell(fid)
     g = fid["unit_cell"]
     UC = UnitCell(eachcol(read(g["lattice_vectors"]))...)
@@ -105,6 +119,9 @@ function read_unit_cell(fid)
     return UC 
 end
 
+"""
+Dump MonteCarlo object metadata into .params file. 
+"""
 function dump_metadata!(fid, mc)
     # dump unit cell metadata 
     dump_unit_cell!(fid, mc.lattice.unit_cell)
@@ -119,40 +136,67 @@ function dump_metadata!(fid, mc)
     dump_attributes_hdf5!(fid, mc.parameters)
 end 
 
-# reads lattice group from hdf5.params file and returns Lattice object 
-function read_lattice(fid)
+"""
+Create .params file at path specified by MonteCarlo.outpath.
+"""
+function create_params_file(mc)
+    f = h5open(string(mc.outpath,".params"), "w")
+    dump_metadata!(f, mc)
+    close(f)
+end
+
+"""
+Reads lattice group from h5.params file and returns Lattice object.
+"""
+function read_lattice(fid)::Lattice
     l = fid["lattice"]
     size = tuple(read(l["size"])...)
     uc = read_unit_cell(fid)
     S = read(l["S"])
     bc = read(l["bc"])
-    return lattice(size, uc, S, bc=bc)
+    return Lattice(size, uc, S, bc=bc)
 end 
 
-# dims is the number of measurements that will be taken 
-function initialize_hdf5(filename, mc)
-    file = h5open(filename, "w")
+"""
+Create configuration file at specified temperature for output. 
+"""
+function initialize_hdf5(mc)
+    file = h5open(mc.outpath, "w")
     write_attribute(file, "T", mc.T)
     file["spins"] = mc.lattice.spins
     file["site_positions"] = mc.lattice.site_positions
     close(file)
 end
 
-function write_MC_checkpoint!(filename::String, mc)
-    file = h5open(filename, "r+")
+"""
+Update spin configuration in configuration file. 
+"""
+function write_MC_checkpoint(mc)
+    file = h5open(mc.outpath, "r+")
     file["spins"][:,:] = mc.lattice.spins #overwrite current spins
     close(file)
 end
 
-function write_initial_configuration!(filename::String, mc)
+"""
+Write spins of current spin configuration to .h5 file.
+"""
+function write_initial_configuration(filename::String, mc)
     file = h5open(filename, "w")
     write_attribute(file, "T", mc.T)
     file["spins"] = mc.lattice.spins 
     close(file)
 end
 
-function write_final_observables!(filename::String, mc) 
-    file = h5open(filename, "r+")
+"""
+Update configuration file with final observables. Outputs:
+- specific heat and error 
+- magnetization and error 
+- magnetic susceptibility and error 
+- total energy and error 
+- roundtrip marker and error (for tracking parallel tempering success purposes)
+"""
+function write_final_observables(mc) 
+    file = h5open(mc.outpath, "r+")
     file["spins"][:,:] = mc.lattice.spins  # dump final spins 
     heat, dheat = specific_heat(mc)
     chi, dchi = susceptibility(mc)
@@ -176,11 +220,14 @@ function write_final_observables!(filename::String, mc)
     g["energy"] = mean(mc.observables.energy,1)
     g["energy_err"] = std_error(mc.observables.energy,1)
     g["roundtripMarker"] = mean(mc.observables.roundtripMarker)
-    g["energy_timeseries"] = collect(mc.observables.energyTimeSeries)
+    #g["energy_timeseries"] = collect(mc.observables.energyTimeSeries)
     g["roundtripMarker_err"] = std_error(mc.observables.roundtripMarker)
     close(file)
 end
 
+"""
+Overwrites existing keys in h5 file.
+"""
 function overwrite_keys!(fid, dict)
     for key in keys(dict)
         if haskey(fid, key)
@@ -200,7 +247,10 @@ function attributes_to_dict(file)
     return dict 
 end
 
-function read_spin_configuration!(filename::String, lat::Lattice)
+"""
+Updates spins in lattice object with spin configuration from .h5 file.
+"""
+function read_spin_configuration!(lat::Lattice, filename::String)
     file = h5open(filename, "r")
     lat.spins[:,:] = read(file["spins"])
     close(file)
