@@ -42,7 +42,8 @@ outpath   = string(pwd(), "/")
 ```
 The Monte Carlo parameters are specified in a dictionary (see the documentation in monte_carlo.jl for details). For simulated annealing, we need to define the number of thermalization sweeps and number of overrelaxation sweeps per Metropolis sweep. 
 ```
-mcparams  = Dict( "t_thermalization" => Int(1e4),     
+mcparams  = Dict( "t_thermalization" => Int(1e5),     
+                  "t_deterministic" => Int(1e6),
                   "overrelaxation"   => 10      )     
 ```
 Next, generate a unit cell object and add Hamiltonian terms. 
