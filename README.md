@@ -27,6 +27,7 @@ The typical workflow is as follows.
 6. (If doing dynamics) Run the LLG code on the measurements.
 
 ### Example: Square lattice Heisenberg model with a field 
+
 We will first do a simulated annealing example on the square lattice. Import the package and set parameters.
 ```
 using ClassicalSpinMC
@@ -40,13 +41,17 @@ h_c = h .* [0., 0., 1.] # Zeeman field vector
 T = 1e-7 # target temperature 
 outpath   = string(pwd(), "/")
 ```
+
 The Monte Carlo parameters are specified in a dictionary (see the documentation in monte_carlo.jl for details). For simulated annealing, we need to define the number of thermalization sweeps and number of overrelaxation sweeps per Metropolis sweep. 
+
 ```
 mcparams  = Dict( "t_thermalization" => Int(1e5),     
                   "t_deterministic" => Int(1e6),
                   "overrelaxation"   => 10      )     
 ```
+
 Next, generate a unit cell object and add Hamiltonian terms. 
+
 ```
 UC = Square()  
 addBilinear!(S, 1, 1, J, (1, 0)) #x+
@@ -55,22 +60,30 @@ addBilinear!(S, 1, 1, J, (0, 1 )) #y+
 addBilinear!(S, 1, 1, J, (0, -1 )) #y-
 addZeemanCoupling!(S, 1, h_c)
 ```
+
 Next, we create the lattice object with periodic boundary conditions (by default). 
+
 ```
 lat = Lattice( (L,L), UC, S, bc="periodic") 
 ```
+
 We then initialize and construct the MC object
+
 ```
 mc = MonteCarlo(T, lat, mcparams, outpath=outpath)
 ```
+
 Because we specified an output path, this line will create `configuration.h5.params` and `configuration_0.h5` files. 
 
 Finally, we perform simulated annealing with deterministic updates (used at very low temperatures when the metropolis acceptance rate is almost nonexistent).
+
 ```
 simulated_annealing!(mc, x ->1.0*0.9^x, 1.0)
 deterministic_updates!(mc)
 ```
+
 The current spin configuration is stored in `mc.lattice.spins`, and can be outputted to `configuration_0.h5` using 
+
 ```
 write_MC_checkpoint(mc)
 ```
