@@ -232,7 +232,27 @@ function runStaticStructureFactor!(path, lat::Lattice, ks::Matrix{Float64}, over
     println("Calculation completed on rank $rank on ", Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
 end
 
-function runMolecularDynamics!(path, tstep, tmin, tmax, lat::Lattice, ks::Matrix{Float64}, alg=Tsit5(), tol::Float64=1e-7,
+"""
+Time evolves each spin configuration in provided path using LLG equations.
+
+Computes and writes out dynamical spin correlation for each configuration. 
+
+# Arguments:
+- `path::String`: path to folder containing initial configurations with trailing backslash 
+- `tstep::Real`: timestep 
+- `tmin::Real`: minimum of time interval
+- `tmax::Real`: max of time interval
+- `lat::Lattice`: Lattice object 
+- `ks::Matrix{Float64}`: matrix containing wavevectors 
+
+# Keyword arguments:
+- `alg=Tsit5()`: algorithm used for the `DifferentialEquations.jl` ODE solver 
+- `tol::Float64=1e-7`: tolerance for solver 
+- `override=false`: flag to overwrite configuration with existing MD results 
+- `alpha::Float64=0.0`: damping parameter 
+"""
+function runMolecularDynamics!(path::String, tstep::Real, tmin::Real, tmax::Real, lat::Lattice, 
+                               ks::Matrix{Float64}; alg=Tsit5(), tol::Float64=1e-7,
                                override=false; alpha::Float64=0.0)
     # initialize MPI parameters 
     rank = 0
@@ -331,7 +351,17 @@ function compute_static_structure_factor(path::String, dest::String)
     println("Done")
 end
 
-function compute_dynamic_structure_factor(path::String, dest::String, params::Dict{String, Float64})
+"""
+Computes dynamical spin structure factor. 
+
+Averages over all spin correlations in a given path. 
+
+# Arguments:
+- `path::String`: path to initial configuration files 
+- `dest::String`: path to write out final DSSF to 
+- `params::Dict{String,Float64}`: human readable dictionary of parameters to write out 
+"""
+function compute_dynamical_structure_factor(path::String, dest::String, params::Dict{String, Float64}=Dict{String,Float64}())
     # initialize LogBinner
     println("Initializing LogBinner in $path")
     files = readdir(path)
