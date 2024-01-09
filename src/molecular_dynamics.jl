@@ -233,6 +233,10 @@ function runStaticStructureFactor!(path, lat::Lattice, ks::Matrix{Float64}, over
 end
 
 """
+    runMolecularDynamics!(path::String, tstep::Real, tmin::Real, tmax::Real, lat::Lattice, 
+                               ks::Matrix{Float64}; alg=Tsit5(), tol::Float64=1e-7,
+                               override=false; alpha::Float64=0.0)
+
 Time evolves each spin configuration in provided path using LLG equations.
 
 Computes and writes out dynamical spin correlation for each configuration. 
@@ -253,7 +257,7 @@ Computes and writes out dynamical spin correlation for each configuration.
 """
 function runMolecularDynamics!(path::String, tstep::Real, tmin::Real, tmax::Real, lat::Lattice, 
                                ks::Matrix{Float64}; alg=Tsit5(), tol::Float64=1e-7,
-                               override=false; alpha::Float64=0.0)
+                               override=false, alpha::Float64=0.0)
     # initialize MPI parameters 
     rank = 0
     commSize = 1
