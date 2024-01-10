@@ -28,6 +28,4 @@ export total_energy, energy_density, get_local_field
 include("bravais.jl")
 export Triangular, Square, Honeycomb, FCC, Pyrochlore, BreathingPyrochlore
 
-include("molecular_dynamics.jl")
-export compute_equal_time_correlations, runStaticStructureFactor!, runMolecularDynamics!, compute_static_structure_factor, compute_dynamic_structure_factor
 end 
