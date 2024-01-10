@@ -75,14 +75,14 @@ Wrapper for creating a MonteCarlo object.
 - `outpath::String=""`: path to directory to write .h5 files to with trailing backslash. 
 if empty string, no files are written. 
 - `outprefix::String="configuration"`: prefix of filename(s) for output. 
-- `inparams::Dict{String,Any}=Dict{String,Any}()`: optional dictionary of simulation parameters for 
+- `inparams::Dict{String,<:Any}=Dict{String,<:Any}()`: optional dictionary of simulation parameters for 
 output in .params file. 
 - `overwrite::Bool=true`: flag for overwriting existing files. 
 """
 function MonteCarlo(T::Float64, lattice::Lattice, parameters::Dict{String,Int64}; 
                     constraint::Function=x->0.0, weight::Float64=0.0, 
                     outpath::String="", outprefix::String="configuration", 
-                    inparams::Dict{String,Any}=Dict{String,Any}(),
+                    inparams::Dict{String,<:Any}=Dict{String,<:Any}(),
                     overwrite::Bool=true)::MonteCarlo
     
     # trailing backslash included in outpath
@@ -115,14 +115,14 @@ function MonteCarlo(T::Float64, lattice::Lattice, parameters::Dict{String,Int64}
 
         # create params file if doesn't exist (dumping metadata)
         if rank == 0 && !isfile(string(mc.outpath,".params")) && overwrite 
-            create_params_file(mc)
+            paramsfile = create_params_file(mc)
             write_attributes(mc, inparams)
         end
 
         # create hdf5 containing initial spin configuration on rank 
         if !isfile(mc.outpath) && overwrite
             println("Creating new file $filename for output on rank $rank")
-            initialize_hdf5(mc)
+            initialize_hdf5(mc, paramsfile)
         end
     else
         mc.outpath = outpath # outpath is empty string 

@@ -140,9 +140,11 @@ end
 Create .params file at path specified by MonteCarlo.outpath.
 """
 function create_params_file(mc)
-    f = h5open(string(mc.outpath,".params"), "w")
+    filename = string(mc.outpath,".params")
+    f = h5open(filename, "w")
     dump_metadata!(f, mc)
     close(f)
+    return filename
 end
 
 """
@@ -160,9 +162,10 @@ end
 """
 Create configuration file at specified temperature for output. 
 """
-function initialize_hdf5(mc)
+function initialize_hdf5(mc, paramsfile::String)
     file = h5open(mc.outpath, "w")
     write_attribute(file, "T", mc.T)
+    write_attribute(file, "paramsfile", paramsfile)
     file["spins"] = mc.lattice.spins
     file["site_positions"] = mc.lattice.site_positions
     close(file)
