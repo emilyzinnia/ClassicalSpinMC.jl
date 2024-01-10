@@ -186,8 +186,12 @@ Write spins of current spin configuration to .h5 file.
 function write_initial_configuration(filename::String, mc)
     file = h5open(filename, "w")
     write_attribute(file, "T", mc.T)
+    params_ = h5open(mc.outpath, "r")
+    paramsfile = read(attributes(params_)["paramsfile"])
+    write_attribute(file, "paramsfile", paramsfile)
     file["spins"] = mc.lattice.spins 
     close(file)
+    close(params_)
 end
 
 """
