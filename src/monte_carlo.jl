@@ -82,7 +82,7 @@ output in .params file.
 function MonteCarlo(T::Float64, lattice::Lattice, parameters::Dict{String,Int64}; 
                     constraint::Function=x->0.0, weight::Float64=0.0, 
                     outpath::String="", outprefix::String="configuration", 
-                    inparams::Dict{String,<:Any}=Dict{String,<:Any}(),
+                    inparams::Dict{String,<:Any}=Dict{String,Any}(),
                     overwrite::Bool=true)::MonteCarlo
     
     # trailing backslash included in outpath
