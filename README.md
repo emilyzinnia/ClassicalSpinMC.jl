@@ -1,4 +1,4 @@
-# ClassicalSpinMCJulia
+# ClassicalSpinMC.jl
 
 This package is for simulating classical spin systems using Monte Carlo (MC) algorithms. It supports arbitrary lattice constructions up to 3 dimensions with any number of basis sites, and Hamiltonians with a Zeeman field, onsite interactions, and up to quartic interaction terms. 
 
