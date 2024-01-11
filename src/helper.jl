@@ -28,7 +28,7 @@ function print_runtime_statistics!(mc, output_stats::Vector{Int64}, enableMPI::B
     t = mc.sweep
     progress = 100.0 * mc.sweep / total_sweeps 
     thermalized = (mc.sweep >= mc.parameters.t_thermalization) ? "YES" : "NO"
-    attempted_local = (t - s_prev) * mc.lattice.size / mc.parameters.OR
+    attempted_local = (t - s_prev) * mc.lattice.size / mc.parameters.overrelaxation_rate
     local_acceptance_rate = (accepted_local-local_prev) / attempted_local * 100.0
 
     if enableMPI
