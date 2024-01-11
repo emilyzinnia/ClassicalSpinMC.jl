@@ -432,7 +432,7 @@ function parallel_tempering!(mc::MonteCarlo, saveIC::Vector{Int64}=Vector{Int64}
                 if IC
                     timestep = (mc.sweep - mc.parameters.t_thermalization) ÷ mc.parameters.checkpoint_rate
                     if any(rank .== saveIC)
-                        write_initial_configuration(string(path,"IC_$rank/IC_$timestep.h5"), mc)
+                        write_initial_configuration(string(path,"/IC_$rank/IC_$timestep.h5"), mc)
                     end
                 end
             end 
