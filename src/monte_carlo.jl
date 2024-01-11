@@ -112,10 +112,11 @@ function MonteCarlo(T::Float64, lattice::Lattice, parameters::Dict{String,Int64}
         filename=string(outprefix,"_",rank,".h5")
         rank == 0 && !isdir(string(outpath)) && mkdir( string(outpath) )
         mc.outpath = string(outpath,filename)
+        paramsfile = string(outpath,outprefix,".h5.params")
 
         # create params file if doesn't exist (dumping metadata)
-        if rank == 0 && !isfile(string(mc.outpath,".params")) && overwrite 
-            paramsfile = create_params_file(mc)
+        if rank == 0 && !isfile(paramsfile) && overwrite 
+            create_params_file(mc, paramsfile)
             write_attributes(mc, inparams)
         end
 
@@ -251,7 +252,7 @@ function simulated_annealing!(mc::MonteCarlo, schedule::Function, T0::Float64=1.
         T =  schedule(time)
         time +=1
         if out
-            println("Lowering temperature to T=$T on rank $rank and writing checkpoint")
+            println("Lowering temperature to T=$T and writing checkpoint")
             write_MC_checkpoint(mc)  
         else
             println("Lowering temperature to T=$T")

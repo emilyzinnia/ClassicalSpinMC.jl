@@ -22,10 +22,10 @@ function dump_attributes_hdf5!(fid, dict::Dict{String,Float64})
 end
 
 """
-Write user-specified dictionary to h5 file specified by MonteCarlo.outpath.
+Write user-specified dictionary to h5 file.
 """
-function write_attributes(mc, dict::Dict{String,Float64})
-    f = h5open(string(mc.outpath,".params"), "r+")
+function write_attributes(filename, dict::Dict{String,Float64})
+    f = h5open(filename, "r+")
     dump_attributes_hdf5!(f, dict)
     close(f)
 end
@@ -139,8 +139,7 @@ end
 """
 Create .params file at path specified by MonteCarlo.outpath.
 """
-function create_params_file(mc)
-    filename = string(mc.outpath,".params")
+function create_params_file(mc, filename)
     f = h5open(filename, "w")
     dump_metadata!(f, mc)
     close(f)
