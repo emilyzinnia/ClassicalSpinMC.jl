@@ -32,7 +32,7 @@ addZeemanCoupling!(P, 4, h4*B*mu_B)
 # generate lattice
 lat = Lattice( (L,L,L), P, S) 
 params = Dict("t_thermalization"=>t_thermalization, "t_measurement"=>t_measurement, 
-                "probe_rate"=>probe_rate, "swap_rate"=>swap_rate, "overrelaxation"=>overrelaxation, 
+                "probe_rate"=>probe_rate, "swap_rate"=>swap_rate, "overrelaxation_rate"=>overrelaxation, 
                 "report_interval"=>report_interval, "checkpoint_rate"=>checkpoint_rate)
 
 # create MC object 

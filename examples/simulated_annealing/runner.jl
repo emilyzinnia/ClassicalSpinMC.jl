@@ -19,7 +19,8 @@ inparams = Dict("K"=>K, "h"=>h)  # dictionary of human readable input parameters
 # set MC parameters 
 #------------------------------------------
 mcparams  = Dict( "t_thermalization" => Int(1e4),
-                  "overrelaxation"   => 10      )
+                  "t_deterministic" => Int(1e6),
+                  "overrelaxation_rate"   => 10      )
 outpath   = string(pwd(), "/")
 
 # target temperature
