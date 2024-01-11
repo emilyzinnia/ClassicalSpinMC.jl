@@ -24,7 +24,7 @@ end
 """
 Write user-specified dictionary to h5 file.
 """
-function write_attributes(filename, dict::Dict{String,Float64})
+function write_attributes(filename::String, dict::Dict{String,<:Any})
     f = h5open(filename, "r+")
     dump_attributes_hdf5!(f, dict)
     close(f)
