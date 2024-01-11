@@ -1,7 +1,7 @@
 name = "ClassicalSpinMC"
 uuid = "91b72e2d-915f-4143-bd56-2ec94b449d37"
 authors = ["Emily Zinnia Zhang <ezhang@physics.utoronto.ca>"]
-version = "0.1.0"
+version = "1.0.0"
 
 [deps]
 BinningAnalysis = "b7192094-8e58-5052-a244-180a858778ee"
