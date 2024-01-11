@@ -117,7 +117,9 @@ function MonteCarlo(T::Float64, lattice::Lattice, parameters::Dict{String,Int64}
         # create params file if doesn't exist (dumping metadata)
         if rank == 0 && !isfile(paramsfile) && overwrite 
             create_params_file(mc, paramsfile)
-            write_attributes(paramsfile, inparams)
+            if length(inparams) > 0
+                write_attributes(paramsfile, inparams)
+            end
         end
 
         # create hdf5 containing initial spin configuration on rank 
