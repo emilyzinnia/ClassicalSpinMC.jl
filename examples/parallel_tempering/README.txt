@@ -21,12 +21,3 @@ to run from command line:
 mpiexecjl -n $NTASKS julia runner.jl $OUTPUT_PATH
 
 (you can use your favourite MPI executable, but I just use the julia mpiexec wrapper)
-
-------------------------------------------------------------
-runner_MD.jl 
-------------------------------------------------------------
-- reads the spin configurations from the files generated from runner.jl and runs time evolution/FT
-- evenly distributes the N files across CPUs
-
-to run from command line:
-mpiexecjl -n $NTASKS julia runner_MD.jl $OUTPUT_PATH $TEMPERATURE_RANK
