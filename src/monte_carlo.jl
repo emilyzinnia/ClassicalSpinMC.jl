@@ -43,7 +43,7 @@ function MCParamsBuffer(dict::Dict{String,Int64})::SimulationParameters
         push!(ordered_vals, dict[key])
     end
 
-    for key in dict
+    for key in keys(dict)
         if !(key in allowed_keys)
             printstyled("WARNING: "; color = :yellow)
             println("'$key' not a valid MC parameter; ignoring")
