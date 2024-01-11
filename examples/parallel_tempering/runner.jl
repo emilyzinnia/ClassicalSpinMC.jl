@@ -39,4 +39,4 @@ params = Dict("t_thermalization"=>t_thermalization, "t_measurement"=>t_measureme
 mc = MonteCarlo(T, lat, params)
 
 # perform MC tasks 
-parallel_tempering!(mc, path, [0]) # output measurements on rank 0
+parallel_tempering!(mc, [0]) # output measurements on rank 0
