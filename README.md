@@ -1,6 +1,6 @@
 # ClassicalSpinMCJulia
 
-This package is for simulating classical spin systems and spin dynamics using Monte Carlo (MC) and Landau-Lifshitz-Gilbert (LLG) algorithms. It supports arbitrary lattice constructions up to 3 dimensions with any number of basis sites, and Hamiltonians with a Zeeman field, onsite interactions, and up to quartic interaction terms. 
+This package is for simulating classical spin systems using Monte Carlo (MC) algorithms. It supports arbitrary lattice constructions up to 3 dimensions with any number of basis sites, and Hamiltonians with a Zeeman field, onsite interactions, and up to quartic interaction terms. 
 
 
 ## Prerequisites 
@@ -24,7 +24,6 @@ The typical workflow is as follows.
 3. Create `Lattice` object using the `UnitCell` object, and by specifying the lattice dimensions, spin magnitude, and boundary conditions (default periodic). 
 4. Initialize `MonteCarlo` object. If an output path is specified, a `.h5` file containing the initial spin configuration and a `.h5.params` file containing the simulation metadata will be created. 
 5. Perform the desired MC tasks (e.g. simulated annealing or parallel tempering) to thermalize the system to a desired temperature and take measurements. 
-6. (If doing dynamics) Run the LLG code on the measurements.
 
 ### Example: Square lattice Heisenberg model with a field 
 
