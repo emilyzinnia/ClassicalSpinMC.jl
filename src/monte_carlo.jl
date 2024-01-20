@@ -349,7 +349,7 @@ function parallel_tempering!(mc::MonteCarlo, saveIC::Vector{Int64}=Vector{Int64}
     path = dirname(mc.outpath)
     if IC
         any(rank .== saveIC) && println("Initializing IC collection on rank $rank")
-        any(rank .== saveIC) && !isdir(string(path, "IC_$rank")) && mkdir( string(path, "IC_$rank") )
+        any(rank .== saveIC) && !isdir(string(path, "/IC_$rank")) && mkdir( string(path, "/IC_$rank") )
     end
 
     # run parallel tempering
