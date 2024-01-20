@@ -45,8 +45,7 @@ function MCParamsBuffer(dict::Dict{String,Int64})::SimulationParameters
 
     for key in keys(dict)
         if !(key in allowed_keys)
-            printstyled("WARNING: "; color = :yellow)
-            println("'$key' not a valid MC parameter; ignoring")
+            @warn "'$key' not a valid MC parameter; ignoring"
         end
     end
     return SimulationParameters(ordered_vals...)

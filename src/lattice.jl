@@ -151,8 +151,7 @@ function Lattice(size::NTuple{D,Int64}, uc::UnitCell{D},
     quartic = uc.quartic
     
     if length(uc.cubic) > 0 | length(uc.quartic) > 0
-        printstyled("WARNING: "; color = :yellow)
-        println("Cubic and quartic interactions untested for unit cells with more than one basis site. Use with caution.")
+        @warn "Cubic and quartic interactions untested for unit cells with more than one basis site. Use with caution."
     end
     lat.cubic_tensors = tuple([cubic[r][1] for r=1:N3 ]...)
     lat.quartic_tensors = tuple([quartic[r][1] for r=1:N4 ]...)
