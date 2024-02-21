@@ -14,7 +14,7 @@ end
 """
 Helper function to dump attributes from dictionaries to hdf5. 
 """
-function dump_attributes_hdf5!(fid, dict::Dict{String,Float64})
+function dump_attributes_hdf5!(fid, dict::Dict{String,<:Any})
     # dump all input parameters 
     for (key, value) in dict 
         write_attribute(fid, key, value)
