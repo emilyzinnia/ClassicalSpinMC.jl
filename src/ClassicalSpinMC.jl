@@ -19,6 +19,9 @@ include("helper.jl")
 include("hdf5.jl")
 export overwrite_keys!, write_MC_checkpoint, create_params_file
 
+include("metropolis.jl")
+export Metropolis, MetropolisAdaptive, MetropolisConstraint, MetropolisConstraintAdaptive
+
 include("monte_carlo.jl")
 export MonteCarlo, simulated_annealing!, deterministic_updates!, parallel_tempering!
 

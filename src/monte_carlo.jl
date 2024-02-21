@@ -4,31 +4,6 @@ using MPI
 using Dates
 using LinearAlgebra
 
-struct SimulationParameters
-    t_thermalization::Int64 # total thermalization sweeps 
-    t_deterministic::Int64 # total deterministic updates 
-    t_measurement::Int64 # total measurement sweeps 
-    probe_rate::Int64 # rate at which measurements are taken after thermalization
-    swap_rate::Int64 # rate at which replica exchanges are attempted 
-    overrelaxation_rate::Int64 # ratio of overrelaxation sweeps : metropolis sweeps
-    report_interval::Int64 
-    checkpoint_rate::Int64 # rate at which checkpoints are written as ICs for MD 
-end
-
-mutable struct MonteCarlo
-    T::Float64    # temperature
-    sweep::Int64   
-    lambda::Float64  # total penalty imposed by constraints
-    parameters::SimulationParameters
-    observables::Observables
-    lattice::Lattice 
-    roundtripMarker::Float64
-    weight::Float64
-    constraint::Function      # lagrange multipliers for constraints 
-    outpath::String # absolute path to hdf5 file 
-    MonteCarlo() = new()
-end
-
 """
 Buffer for creating SimulationParameters from a Dict of values. 
 """
@@ -82,19 +57,19 @@ function MonteCarlo(T::Float64, lattice::Lattice, parameters::Dict{String,Int64}
                     constraint::Function=x->0.0, weight::Float64=0.0, 
                     outpath::String="", outprefix::String="configuration", 
                     inparams::Dict{String,<:Any}=Dict{String,Any}(),
-                    overwrite::Bool=true)::MonteCarlo
+                    overwrite::Bool=true, sigma0::Real=60)::MonteCarlo
     
     # trailing backslash included in outpath
     mc = MonteCarlo()
     mc.T = T 
-    mc.sweep = 0
     mc.observables = Observables()
     mc.lattice = deepcopy(lattice)
     mc.parameters = MCParamsBuffer(parameters)
-    mc.roundtripMarker = 1.0
     mc.lambda = 0.0
     mc.weight = weight
     mc.constraint = constraint 
+    mc.sigma = sigma0
+    mc.sigma0 = sigma0
 
     # initialize MPI parameters 
     if MPI.Initialized()
@@ -132,19 +107,6 @@ function MonteCarlo(T::Float64, lattice::Lattice, parameters::Dict{String,Int64}
     return mc
 end
 
-"""
-Calculates energy difference after choosing a random spin direction on site `point`.
-
-Modifies "spin" matrix in Lattice object. 
-"""
-function calculate_energy_diff!(lattice::Lattice, point::Int64)::Float64
-    E_old = energy(lattice, point)
-    r = random_spin_orientation(lattice.S)
-    set_spin!(lattice.spins, r, point) #flip spin direction at point
-    E_new = energy(lattice, point)
-    delta_E = E_new - E_old
-    return delta_E
-end
 
 """
 Perform overrelaxation sweep. Reflects spins on each site along local field direction. 
@@ -159,58 +121,6 @@ function overrelaxation!(lattice::Lattice)
         newspin = (-si[1] + proj*H[1], -si[2]+proj*H[2], -si[3]+proj*H[3] ) 
         set_spin!(lattice.spins, newspin, site)
     end
-end
-
-"""
-Perform Metropolis sweep with specified constraint. 
-
-Returns a count of how many sweeps were accepted for statistics. 
-"""
-function metropolis_constraint!(mc::MonteCarlo, T::Float64)
-    accept_rate = 0.0
-    # perform local updates and sweep through lattice
-    sweep = 0
-    while sweep < mc.lattice.size
-        point = rand(1:mc.lattice.size) # pick random index
-        old_spin = get_spin(mc.lattice.spins, point) # store old spin 
-        delta_E = calculate_energy_diff!(mc.lattice, point) 
-        c = mc.constraint(mc.lattice)
-        new_lambda = mc.lambda - mc.weight * c
-
-        accept = (delta_E-(new_lambda * c)) < 0 ? true : rand() < exp(-(delta_E-(new_lambda * c)) / T)
-        if !accept
-            set_spin!(mc.lattice.spins, old_spin, point) 
-        else 
-            accept_rate += 1 
-            mc.lambda = new_lambda 
-        end
-        sweep += 1 
-    end
-    return accept_rate
-end
-
-"""
-Perform Metropolis sweep. 
-
-Returns a count of how many sweeps were accepted for statistics. 
-"""
-function metropolis!(mc::MonteCarlo, T::Float64)
-    accept_rate = 0.0
-    # perform local updates and sweep through lattice
-    sweep = 0
-    while sweep < mc.lattice.size
-        point = rand(1:mc.lattice.size) # pick random index
-        old_spin = get_spin(mc.lattice.spins, point) # store old spin 
-        delta_E = calculate_energy_diff!(mc.lattice, point) 
-        accept = (delta_E) < 0 ? true : rand() < exp(-(delta_E) / T)
-        if !accept
-            set_spin!(mc.lattice.spins, old_spin, point) 
-        else 
-            accept_rate += 1 
-        end
-        sweep += 1 
-    end
-    return accept_rate
 end
 
 """
@@ -229,34 +139,29 @@ new T = schedule(time) where time is incremented by 1.
 - `T0::Float64=1.0`: initial high temperature.
 
 """
-function simulated_annealing!(mc::MonteCarlo, schedule::Function, T0::Float64=1.0)
+function simulated_annealing!(mc::MonteCarlo, schedule::Function, T0::Float64=1.0; 
+                              alg::FunctionWrapper{Float64, Tuple{MonteCarlo,Float64}}=Metropolis())
     T = T0
     time = 1
     out = length(mc.outpath) > 0
 
-    # determine whether to use constrained metropolis or unconstrained
-    if mc.weight != 0
-        met = metropolis_constraint!
-    else
-        met = metropolis!
-    end
+    accept_total = mc.parameters.t_thermalization*mc.lattice.size / mc.parameters.overrelaxation_rate
 
     while T > mc.T
         t = 1
-        while t < mc.parameters.t_thermalization
+        R = 0.0
+        while t < mc.parameters.t_thermalization 
             overrelaxation!(mc.lattice)
             if t % mc.parameters.overrelaxation_rate == 0
-                met(mc, T)
+                R += alg(mc, T)
             end
             t += 1
         end
+        println("Acceptance rate at T=$T: $(round(R/accept_total*100, digits=5)) % ")
         T =  schedule(time)
         time +=1
         if out
-            println("Lowering temperature to T=$T and writing checkpoint")
             write_MC_checkpoint(mc)  
-        else
-            println("Lowering temperature to T=$T")
         end
     end
 end
@@ -300,7 +205,8 @@ when initializing MonteCarlo object:
 - `saveIC::Vector{Int64}=Vector{Int64}[]`: vector containing which ranks to output thermalized 
 configurations on every `checkpoint_rate` sweeps. can be used as initial configurations (IC) for Landau Lifshitz Gilbert calculations. 
 """
-function parallel_tempering!(mc::MonteCarlo, saveIC::Vector{Int64}=Vector{Int64}[])
+function parallel_tempering!(mc::MonteCarlo, saveIC::Vector{Int64}=Vector{Int64}[]; 
+    alg::FunctionWrapper{Float64, Tuple{MonteCarlo,Float64}}=Metropolis())
     # initialize MPI parameters 
     rank = 0
     commSize = 1
@@ -321,13 +227,11 @@ function parallel_tempering!(mc::MonteCarlo, saveIC::Vector{Int64}=Vector{Int64}
             commSize > 1 && MPI.Allgather!(MPI.IN_PLACE, temp, 1, MPI.COMM_WORLD) # collect temps from all ranks
             T = temp[rank+1]
             enableMPI = true
+        else
+            @warn "MPI commSize of 1; no replica exchanges will occur!"
         end
-    end
-
-    if mc.weight != 0 
-        met = metropolis_constraint!
     else
-        met = metropolis!
+        @error "MPI not initialized!"
     end
 
     # generate initial spins and initialize energy  
@@ -354,21 +258,22 @@ function parallel_tempering!(mc::MonteCarlo, saveIC::Vector{Int64}=Vector{Int64}
     # run parallel tempering
     rank == 0 && @printf("Running sweeps on %s.\n", Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
 
-    while mc.sweep < total_sweeps 
+    sweep = 0
+    while sweep < total_sweeps 
 
         # overrelaxation sweeps
         overrelaxation!(mc.lattice)
 
-        if mc.sweep % mc.parameters.overrelaxation_rate == 0
-            # local metroppolis updates 
-            accepted_local += met(mc, mc.T)
+        if sweep % mc.parameters.overrelaxation_rate == 0
+            # local metropolis updates 
+            accepted_local += alg(mc, mc.T)
             E = total_energy(mc.lattice)
 
             # attempt exchange
-            if enableMPI && (mc.sweep % mc.parameters.swap_rate == 0)
+            if enableMPI && (sweep % mc.parameters.swap_rate == 0)
 
                 # exchange energies to the right for odd and left for even t
-                if (mc.sweep / mc.parameters.swap_rate) % 2 == 0
+                if (sweep / mc.parameters.swap_rate) % 2 == 0
                     partner_rank = iseven(rank) ? rank + 1 : rank - 1 
                 else
                     partner_rank = iseven(rank) ? rank - 1 : rank + 1 
@@ -379,11 +284,8 @@ function parallel_tempering!(mc::MonteCarlo, saveIC::Vector{Int64}=Vector{Int64}
 
                     if iseven(rank) # if even rank, send then receive
                         E_partner = MPISimpleSendRecv(E, partner_rank, comm)
-                        roundtrip_partner = MPISimpleSendRecv(mc.roundtripMarker, partner_rank, comm)
-
                     else # if odd, receive then send 
                         E_partner = MPISimpleRecvSend(E, partner_rank, comm)
-                        roundtrip_partner = MPISimpleRecvSend(mc.roundtripMarker, partner_rank, comm)
                     end
 
                     accept_arr[1] = false
@@ -407,29 +309,20 @@ function parallel_tempering!(mc::MonteCarlo, saveIC::Vector{Int64}=Vector{Int64}
                         end
                         mc.lattice.spins = copy(new_spins)
                         E = E_partner
-                        mc.roundtripMarker = roundtrip_partner
                     end
                 end
-                # for checking MC convergence 
-                if rank == 0
-                    mc.roundtripMarker = 0.0
-                elseif rank == commSize - 1
-                    mc.roundtripMarker = 1.0
-                end 
             end
         end
 
         # take measurements
-        if mc.sweep >= mc.parameters.t_thermalization 
-            push!(mc.observables.roundtripMarker, mc.roundtripMarker) 
-            
+        if sweep >= mc.parameters.t_thermalization 
             # write IC after thermalization
-            if mc.sweep % mc.parameters.checkpoint_rate == 0 
+            if sweep % mc.parameters.checkpoint_rate == 0 
                 if out
                     write_MC_checkpoint(mc)
                 end
                 if IC
-                    timestep = (mc.sweep - mc.parameters.t_thermalization) ÷ mc.parameters.checkpoint_rate
+                    timestep = (sweep - mc.parameters.t_thermalization) ÷ mc.parameters.checkpoint_rate
                     if any(rank .== saveIC)
                         write_initial_configuration(string(path,"/IC_$rank/IC_$timestep.h5"), mc)
                     end
@@ -437,20 +330,20 @@ function parallel_tempering!(mc::MonteCarlo, saveIC::Vector{Int64}=Vector{Int64}
             end 
 
             # update observables 
-            if mc.sweep % mc.parameters.probe_rate == 0
+            if sweep % mc.parameters.probe_rate == 0
                 M = get_magnetization(mc.lattice)
                 update_observables!(mc, E,  M)
             end
         end
         
         #increment sweep 
-        mc.sweep += 1
+        sweep += 1
         
         # output runtime statistics 
-        if mc.sweep % mc.parameters.report_interval == 0
+        if sweep % mc.parameters.report_interval == 0
             output_stats[1] = accepted_local
             output_stats[2] = exchange_rate
-            print_runtime_statistics!(mc, output_stats, enableMPI)
+            print_runtime_statistics!(mc, sweep, output_stats, enableMPI)
         end
     end
 

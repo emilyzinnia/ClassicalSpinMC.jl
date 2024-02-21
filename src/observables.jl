@@ -5,9 +5,7 @@ using LinearAlgebra
 mutable struct Observables
     energy::ErrorPropagator{Float64,32}
     magnetization::ErrorPropagator{Float64,32}
-    energyTimeSeries::FullBinner{Float64,Vector{Float64}}
-    roundtripMarker::LogBinner{Float64,32,BinningAnalysis.Variance{Float64}}
-    Observables() = new(ErrorPropagator(Float64), ErrorPropagator(Float64), FullBinner(Float64), LogBinner(Float64) )
+    Observables() = new(ErrorPropagator(Float64), ErrorPropagator(Float64))
 end
 
 function get_magnetization(lattice::Lattice)::Float64

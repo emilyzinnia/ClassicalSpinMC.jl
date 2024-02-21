@@ -22,12 +22,11 @@ function MPISimpleRecvSend(sendbuf::Real, dest::Integer, comm::MPI.Comm)
     return rbuf[1]
 end
 
-function print_runtime_statistics!(mc, output_stats::Vector{Int64}, enableMPI::Bool)
+function print_runtime_statistics!(mc, t, output_stats::Vector{Int64}, enableMPI::Bool)
     accepted_local, exchange_rate, exchange_rate_prev, s_prev, local_prev = output_stats
     total_sweeps = mc.parameters.t_thermalization + mc.parameters.t_measurement
-    t = mc.sweep
-    progress = 100.0 * mc.sweep / total_sweeps 
-    thermalized = (mc.sweep >= mc.parameters.t_thermalization) ? "YES" : "NO"
+    progress = 100.0 * t / total_sweeps 
+    thermalized = (t >= mc.parameters.t_thermalization) ? "YES" : "NO"
     attempted_local = (t - s_prev) * mc.lattice.size / mc.parameters.overrelaxation_rate
     local_acceptance_rate = (accepted_local-local_prev) / attempted_local * 100.0
 
