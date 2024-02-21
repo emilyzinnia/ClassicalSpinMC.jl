@@ -1,18 +1,20 @@
 using HDF5
-using ClassicalSpinMC: dump_unit_cell!, read_unit_cell, dump_lattice!, read_lattice
+using ClassicalSpinMC: dump_unit_cell!, read_unit_cell, dump_metadata!, read_lattice
 using Base.Filesystem
 
 @testset "Dumping Metadata" begin 
     U = Square()
-    lat = Lattice( (2,2), U, S=1.0)
+    lat = Lattice( (2,2), U, 1.0)
+    params = Dict("t_thermalization"=> Int(1e4),"overrelaxation_rate"=>10, "t_deterministic"=>Int(1e7))
+    mc = MonteCarlo(1.0, lat, params)
     h5open(".test.h5", "w") do f 
-        dump_unit_cell!(f,U)
-        dump_lattice!(f,lat)
+        dump_metadata!(f, mc)
     end 
 
+    f = h5open(".test.h5", "r")
+
     @testset "Unit Cell" begin
-        R = read_unit_cell(".test.h5")
-        @test U.n == R.n 
+        R = read_unit_cell(f)
         @test U.lattice_vectors == R.lattice_vectors 
         @test U.basis == R.basis
         @test U.field == R.field 
@@ -23,7 +25,7 @@ using Base.Filesystem
     end
 
     @testset "Lattice" begin
-        L = read_lattice(".test.h5")
+        L = read_lattice(f)
         @test lat.S == L.S 
         @test lat.bc == L.bc
         @test lat.size == L.size 
@@ -39,5 +41,6 @@ using Base.Filesystem
         @test lat.field == L.field  
     end
     
+    close(f)
     Filesystem.unlink(".test.h5")
 end
