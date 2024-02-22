@@ -150,6 +150,7 @@ function simulated_annealing!(mc::MonteCarlo, schedule::Function, T0::Float64=1.
     while T > mc.T
         t = 1
         R = 0.0
+        mc.sigma = mc.sigma0
         while t < mc.parameters.t_thermalization 
             overrelaxation!(mc.lattice)
             if t % mc.parameters.overrelaxation_rate == 0
