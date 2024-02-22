@@ -225,9 +225,6 @@ function write_final_observables(mc)
     g["magnetization_err"] = std_error(mc.observables.magnetization, 1)
     g["energy"] = mean(mc.observables.energy,1)
     g["energy_err"] = std_error(mc.observables.energy,1)
-    g["roundtripMarker"] = mean(mc.observables.roundtripMarker)
-    #g["energy_timeseries"] = collect(mc.observables.energyTimeSeries)
-    g["roundtripMarker_err"] = std_error(mc.observables.roundtripMarker)
     close(file)
 end
 
