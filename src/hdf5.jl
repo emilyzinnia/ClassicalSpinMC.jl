@@ -212,7 +212,7 @@ function write_final_observables(mc)
         for key in keys(g)
             delete_object(g, key)
         end
-        println("Overwriting observables in $filename")
+        println("Overwriting observables in $(mc.outpath)")
     else
         g = create_group(file, "observables")
     end
