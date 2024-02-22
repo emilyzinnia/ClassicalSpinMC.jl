@@ -81,7 +81,7 @@ end
 
 function gaussian_move(S::Real, spin::NTuple{3,Float64}, sigma::Real=60)::NTuple{3,Float64}
     newspin = spin .+ (sigma .* random_spin_orientation(S))
-    return newspin ./ norm(newspin) * S
+    return newspin ./ norm(newspin) .* S
 end
 
 """
