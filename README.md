@@ -11,7 +11,7 @@ This package is for simulating classical spin systems using Monte Carlo (MC) alg
 1. In your desired installation directory, clone the github repository. 
 2. Launch a Julia REPL and type the following command: 
 
-`using Pkg; Pkg.add("$INSTALLATION_PATH/ClassicalSpinMC.jl")`
+`using Pkg; Pkg.add("$INSTALLATION_PATH/ClassicalSpinMC")`
 
 where `$INSTALLATION_PATH` is the path to the package repository. 
 
