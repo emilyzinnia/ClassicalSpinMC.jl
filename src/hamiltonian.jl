@@ -7,9 +7,8 @@ function get_local_field(lattice::Lattice, point::Int64)
     @inbounds rs = get_quartic_sites(lattice, point)
     @inbounds h = get_field(lattice, point)
     @inbounds o = get_onsite(lattice, point)
-    
-    Rs = lattice.quartic_tensors
-    Cs = lattice.cubic_tensors
+    @inbounds Rs = get_quartic_tensors(lattice, point)
+    @inbounds Cs = get_cubic_tensors(lattice, point)
 
     # sum over all interactions
     Hx = 0.0
@@ -67,9 +66,6 @@ function total_energy(lattice::Lattice)
     E_zeeman = 0.0
     E_onsite = 0.0
     
-    Cs = lattice.cubic_tensors
-    Rs = lattice.quartic_tensors
-    
     for point in 1:lattice.size 
         @inbounds js = get_bilinear_sites(lattice, point)
         @inbounds Js = get_bilinear_matrices(lattice, point)
@@ -77,6 +73,8 @@ function total_energy(lattice::Lattice)
         @inbounds rs = get_quartic_sites(lattice, point)
         @inbounds h = get_field(lattice, point)
         @inbounds o = get_onsite(lattice, point)
+        @inbounds Rs = get_quartic_tensors(lattice, point)
+        @inbounds Cs = get_cubic_tensors(lattice, point)
 
         s = get_spin(lattice.spins, point)
         E_zeeman -= (s[1] * h[1] + s[2] * h[2] + s[3] * h[3]) 
@@ -126,8 +124,8 @@ function energy(lattice::Lattice, point::Int64)::Float64
     @inbounds cs = get_cubic_sites(lattice, point)
     @inbounds rs = get_quartic_sites(lattice, point)
     @inbounds h = get_field(lattice, point)
-    @inbounds Cs = lattice.cubic_tensors
-    @inbounds Rs = lattice.quartic_tensors
+    @inbounds Rs = get_quartic_tensors(lattice, point)
+    @inbounds Cs = get_cubic_tensors(lattice, point)
     @inbounds o = get_onsite(lattice, point)
 
     s = get_spin(lattice.spins, point)

@@ -16,9 +16,9 @@ mutable struct Lattice{D,N2,N3,N4}
     bilinear_sites::Vector{NTuple{N2, Int64}}
     bilinear_matrices::Vector{NTuple{N2,InteractionMatrix}}
     cubic_sites::Vector{NTuple{N3, NTuple{2, Int64}}}
-    cubic_tensors::NTuple{N3, Array{Float64, 3}}
+    cubic_tensors::Vector{NTuple{N3, Array{Float64, 3}}}
     quartic_sites::Vector{NTuple{N4, NTuple{3, Int64}}}
-    quartic_tensors::NTuple{N4, Array{Float64, 4}}
+    quartic_tensors::Vector{NTuple{N4, Array{Float64, 4}}}
     field::Vector{NTuple{3,Float64}}
     Lattice(D,N2,N3,N4) = new{D,N2,N3,N4}()
 end
@@ -143,23 +143,28 @@ function Lattice(size::NTuple{D,Int64}, uc::UnitCell{D},
     lat.bilinear_sites = Vector{NTuple{N2, Int64}}(undef, 0)
     lat.bilinear_matrices = Vector{NTuple{N2,InteractionMatrix}}(undef, 0)
     lat.cubic_sites = Vector{NTuple{N3, NTuple{2, Int64}}}(undef, 0)
+    lat.cubic_tensors = Vector{NTuple{N3,Array{Float64,3}}}(undef, 0)
     lat.quartic_sites = Vector{NTuple{N4, NTuple{3, Int64}}}(undef, 0)
+    lat.quartic_tensors = Vector{NTuple{N4,Array{Float64,4}}}(undef, 0)
     
     # get interactions for each site 
     bilinear = uc.bilinear
     cubic = uc.cubic
     quartic = uc.quartic
     
-    if length(uc.cubic) > 0 | length(uc.quartic) > 0
-        @warn "Cubic and quartic interactions untested for unit cells with more than one basis site. Use with caution."
-    end
-    lat.cubic_tensors = tuple([cubic[r][1] for r=1:N3 ]...)
-    lat.quartic_tensors = tuple([quartic[r][1] for r=1:N4 ]...)
+    # if length(uc.cubic) > 0 | length(uc.quartic) > 0
+    #     @warn "Cubic and quartic interactions untested for unit cells with more than one basis site. Use with caution."
+    # end
+    # lat.cubic_tensors = tuple([cubic[r][1] for r=1:N3 ]...)
+    # lat.quartic_tensors = tuple([quartic[r][1] for r=1:N4 ]...)
 
     s2_ = Vector{Int64}(undef, N2)                  # bilinear site indices
     M2_ = Vector{InteractionMatrix}(undef, N2)      # bilinear interaction matrices
     s3_ = Vector{NTuple{2, Int64}}(undef, N3)       # cubic site indices
+    M3_ = Vector{Array{Float64,3}}(undef, N3)
     s4_ = Vector{NTuple{3, Int64}}(undef, N4)       # quartic site indices
+    M4_ = Vector{Array{Float64,4}}(undef, N4)
+
 
     for i in 1:N_sites
         index = indices[i]
@@ -204,9 +209,12 @@ function Lattice(size::NTuple{D,Int64}, uc::UnitCell{D},
                 error("Open BC not implemented for cubic")
             end
             s3_[term] = (j, k)
+            M3_[term] = J
         end
         push!(lat.cubic_sites, tuple(s3_...))
+        push!(lat.cubic_tensors, tuple(M3_...))
 
+        
         # for each quartic term, find neighbours and equivalent interaction tensor
         for term in 1:N4
             b1, b2, b3, b4, J, j_offset, k_offset, l_offset = quartic[term]
@@ -217,8 +225,11 @@ function Lattice(size::NTuple{D,Int64}, uc::UnitCell{D},
                 error("Open BC not implemented for quartic")
             end
             s4_[term] = (j, k, l)
+            M4_[term] = J
         end
         push!(lat.quartic_sites, tuple(s4_...))
+        push!(lat.quartic_tensors, tuple(M4_...))
+
     end 
 
     return lat
@@ -264,6 +275,16 @@ function get_cubic_sites(lat::Lattice{D,N2,N3,N4}, point::Int64)::NTuple{N3, NTu
     return lat.cubic_sites[point]
 end
 
+
+function get_cubic_tensors(lat::Lattice{D,N2,N3,N4}, point::Int64)::NTuple{N3,Array{Float64,3}} where{D,N2,N3,N4}
+    return lat.cubic_tensors[point]
+end
+
 function get_quartic_sites(lat::Lattice{D,N2,N3,N4}, point::Int64)::NTuple{N4, NTuple{3, Int64}} where{D,N2,N3,N4}
     return lat.quartic_sites[point]
+end
+
+
+function get_quartic_tensors(lat::Lattice{D,N2,N3,N4}, point::Int64)::NTuple{N4,Array{Float64,4}} where{D,N2,N3,N4}
+    return lat.quartic_tensors[point]
 end
