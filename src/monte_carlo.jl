@@ -119,6 +119,7 @@ function overrelaxation!(lattice::Lattice)
         H = get_local_field(lattice, site)
         # if no local field, keep spin as is
         if H == (0.0, 0.0, 0.0)
+            println("no local field")
             continue 
         end
         proj = 2.0 * dot(si, H) / (H[1]^2 + H[2]^2 + H[3]^2)
@@ -149,15 +150,22 @@ function simulated_annealing!(mc::MonteCarlo, schedule::Function, T0::Float64=1.
     time = 1
     out = length(mc.outpath) > 0
 
-    accept_total = mc.parameters.t_thermalization*mc.lattice.size / mc.parameters.overrelaxation_rate
+    accept_total = mc.parameters.t_thermalization*mc.lattice.size 
+    if mc.parameters.overrelaxation_rate != 0
+        accept_total /= mc.parameters.overrelaxation_rate
+    end
 
     while T > mc.T
         t = 1
         R = 0.0
         mc.sigma = mc.sigma0
         while t < mc.parameters.t_thermalization 
-            overrelaxation!(mc.lattice)
-            if t % mc.parameters.overrelaxation_rate == 0
+            if mc.parameters.overrelaxation_rate != 0
+                overrelaxation!(mc.lattice)
+                if t % mc.parameters.overrelaxation_rate == 0
+                    R += alg(mc, T)
+                end
+            else 
                 R += alg(mc, T)
             end
             t += 1
