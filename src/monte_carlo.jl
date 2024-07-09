@@ -117,6 +117,10 @@ function overrelaxation!(lattice::Lattice)
     for site=1:lattice.size
         si = get_spin(lattice.spins, site)
         H = get_local_field(lattice, site)
+        # if no local field, keep spin as is
+        if H == (0.0, 0.0, 0.0)
+            continue 
+        end
         proj = 2.0 * dot(si, H) / (H[1]^2 + H[2]^2 + H[3]^2)
         newspin = (-si[1] + proj*H[1], -si[2]+proj*H[2], -si[3]+proj*H[3] ) 
         set_spin!(lattice.spins, newspin, site)
@@ -181,6 +185,10 @@ function deterministic_updates!(mc::MonteCarlo)
     while sweeps < mc.parameters.t_deterministic
         point = rand(1:mc.lattice.size) # pick random index
         field = get_local_field(mc.lattice, point)
+        if field == (0.0, 0.0, 0.0)
+            sweeps +=1
+            continue 
+        end
         set_spin!(mc.lattice.spins, .-field ./ norm(field) .* mc.lattice.S, point)
         sweeps +=1 
     end

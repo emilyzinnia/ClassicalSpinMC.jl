@@ -176,13 +176,19 @@ function Lattice(size::NTuple{D,Int64}, uc::UnitCell{D},
         # for each interaction term, obtain interaction matrix and index 
         for term in 1:N2
             b1, b2, M, offset = bilinear[term]
+            if !(index[1] in (b1, b2))
+                s2_[term] = 1
+                M2_[term] = InteractionMatrix(zeros(Float64, 3, 3))
+                continue
+            end 
+
             if b1 == b2
                 bj = index[1] 
                 sign = 1
             elseif (b1 == index[1]) 
                 bj = b2 
                 sign = 1 
-            else
+            elseif (b2 == index[1])
                 bj = b1 
                 sign = -1
                 M = transposeJ(M)
@@ -203,6 +209,11 @@ function Lattice(size::NTuple{D,Int64}, uc::UnitCell{D},
         # for each cubic term, find neighbours and equivalent interaction tensor
         for term in 1:N3
             b1, b2, b3, J, j_offset, k_offset = cubic[term]
+            if !(index[1] in (b1, b2, b3))
+                s3_[term] = (1, 1)
+                M3_[term] = zeros(Float64, size(J))
+                continue
+            end 
             j = findfirst(x->x == (b2, BC(index, j_offset)...), indices)
             k = findfirst(x->x == (b3, BC(index, k_offset)...), indices)
             if isnothing(j) | isnothing(k) 
@@ -218,6 +229,11 @@ function Lattice(size::NTuple{D,Int64}, uc::UnitCell{D},
         # for each quartic term, find neighbours and equivalent interaction tensor
         for term in 1:N4
             b1, b2, b3, b4, J, j_offset, k_offset, l_offset = quartic[term]
+            if !(index[1] in (b1, b2, b3, b4))
+                s4_[term] = (1,1, 1)
+                M4_[term] = zeros(Float64, size(J))
+                continue
+            end 
             j = findfirst(x->x == (b2, BC(index, j_offset)...), indices)
             k = findfirst(x->x == (b3, BC(index, k_offset)...), indices)
             l = findfirst(x->x == (b4, BC(index, l_offset)...), indices)
