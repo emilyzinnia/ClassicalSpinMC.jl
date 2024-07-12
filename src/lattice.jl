@@ -165,7 +165,6 @@ function Lattice(size::NTuple{D,Int64}, uc::UnitCell{D},
     s4_ = Vector{NTuple{3, Int64}}(undef, N4)       # quartic site indices
     M4_ = Vector{Array{Float64,4}}(undef, N4)
 
-
     for i in 1:N_sites
         index = indices[i]
         
@@ -213,14 +212,31 @@ function Lattice(size::NTuple{D,Int64}, uc::UnitCell{D},
                 s3_[term] = (1, 1)
                 M3_[term] = zeros(Float64, size(J))
                 continue
+            elseif b1 == index[1]
+                bj, bk = b2, b3 
+            elseif b2 == index[1] # [b2, b1, b3] 
+                bj, bk = b1, b3  
+                k_offset = k_offset.-j_offset
+                j_offset = j_offset.*-1 
+                
+                J = permutedims(J,[2,1,3])
+            elseif b3 == index[1] # [b3, b2, b1]
+                bj, bk = b2, b1 
+                j_offset = j_offset .-k_offset
+                k_offset = k_offset .*-1 
+                
+                J = permutedims(J,[3,2,1])
             end 
-            j = findfirst(x->x == (b2, BC(index, j_offset)...), indices)
-            k = findfirst(x->x == (b3, BC(index, k_offset)...), indices)
-            if isnothing(j) | isnothing(k) 
-                error("Open BC not implemented for cubic")
+            j = findfirst(x->x == (bj, BC(index, j_offset)...), indices)
+            k = findfirst(x->x == (bk, BC(index, k_offset)...), indices)
+            if isnothing(j) | isnothing(k) # open BC 
+                s3_[term] = (1, 1)
+                M3_[term] = zeros(Float64, size(J))
+            else # periodic 
+                s3_[term] = (j, k)
+                M3_[term] = J
             end
-            s3_[term] = (j, k)
-            M3_[term] = J
+            
         end
         push!(lat.cubic_sites, tuple(s3_...))
         push!(lat.cubic_tensors, tuple(M3_...))
@@ -229,19 +245,44 @@ function Lattice(size::NTuple{D,Int64}, uc::UnitCell{D},
         # for each quartic term, find neighbours and equivalent interaction tensor
         for term in 1:N4
             b1, b2, b3, b4, J, j_offset, k_offset, l_offset = quartic[term]
+            
             if !(index[1] in (b1, b2, b3, b4))
-                s4_[term] = (1,1, 1)
+                s4_[term] = (1,1,1)
                 M4_[term] = zeros(Float64, size(J))
                 continue
+            elseif b1 == index[1]
+                bj, bk, bl = b2, b3, b4
+            elseif b2 == index[1] # [b2, b1, b3, b4] 
+                # println(b1, b2, b3, b4)
+                bj, bk, bl = b1, b3, b4
+                j_offset = j_offset .*-1 
+                k_offset = k_offset .+j_offset
+                l_offset = l_offset .+j_offset
+                J = permutedims(J,[2,1,3,4])
+            elseif b3 == index[1] # [b3, b2, b1, b4]
+                bj, bk, bl = b2, b1, b4
+                k_offset = k_offset .*-1 
+                l_offset = l_offset .+k_offset
+                j_offset = j_offset .+k_offset
+                J = permutedims(J,[3,2,1,4])
+            elseif b4 == index[1] # [b4, b2, b3, b1]
+                bj, bk, bl = b2, b3, b1
+                l_offset = l_offset .*-1
+                j_offset = j_offset .+l_offset
+                k_offset = k_offset .+l_offset
+                J = permutedims(J,[4,2,3,1])
             end 
-            j = findfirst(x->x == (b2, BC(index, j_offset)...), indices)
-            k = findfirst(x->x == (b3, BC(index, k_offset)...), indices)
-            l = findfirst(x->x == (b4, BC(index, l_offset)...), indices)
-            if isnothing(j) | isnothing(k) | isnothing(l)
-                error("Open BC not implemented for quartic")
+            j = findfirst(x->x == (bj, BC(index, j_offset)...), indices)
+            k = findfirst(x->x == (bk, BC(index, k_offset)...), indices)
+            l = findfirst(x->x == (bl, BC(index, l_offset)...), indices)
+            if isnothing(j) | isnothing(k) | isnothing(l) # open BC
+                s4_[term] = (1,1, 1)
+                M4_[term] = zeros(Float64, size(J))
+            else # periodic 
+                s4_[term] = (j, k, l)
+                M4_[term] = J
             end
-            s4_[term] = (j, k, l)
-            M4_[term] = J
+            
         end
         push!(lat.quartic_sites, tuple(s4_...))
         push!(lat.quartic_tensors, tuple(M4_...))
