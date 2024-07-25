@@ -42,7 +42,7 @@ function get_local_field(lattice::Lattice, point::Int64)
         @einsum Hz += C[3, a, b] * sj[a] * sk[b]
     end
 
-    # quadratic interaction 
+    # quartic interaction 
     for n in eachindex(rs)
         R = Rs[n]
         j, k, l = rs[n]
@@ -86,8 +86,8 @@ function total_energy(lattice::Lattice)
             J = Js[n]
             @inbounds sj = get_spin(lattice.spins, js[n])
             @inbounds E_bilinear +=  s[1] * (J.m11 * sj[1] + J.m12 * sj[2] + J.m13 * sj[3]) + 
-                            s[2] * (J.m21 * sj[1] + J.m22 * sj[2] + J.m23 * sj[3]) + 
-                            s[3] * (J.m31 * sj[1] + J.m32 * sj[2] + J.m33 * sj[3]) 
+                                     s[2] * (J.m21 * sj[1] + J.m22 * sj[2] + J.m23 * sj[3]) + 
+                                    s[3] * (J.m31 * sj[1] + J.m32 * sj[2] + J.m33 * sj[3]) 
         end
 
         # cubic term
