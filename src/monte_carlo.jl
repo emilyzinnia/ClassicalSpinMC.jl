@@ -276,12 +276,20 @@ function parallel_tempering!(mc::MonteCarlo, saveIC::Vector{Int64}=Vector{Int64}
     rank == 0 && @printf("Running sweeps on %s.\n", Dates.format(Dates.now(), "dd u yyyy HH:MM:SS"))
 
     sweep = 0
+    if mc.parameters.overrelaxation_rate == 0 
+        dosweep = 1
+    else
+        dosweep = mc.parameters.overrelaxation_rate
+    end 
+
     while sweep < total_sweeps 
 
         # overrelaxation sweeps
-        overrelaxation!(mc.lattice)
+        if mc.parameters.overrelaxation_rate != 0
+            overrelaxation!(mc.lattice)
+        end 
 
-        if sweep % mc.parameters.overrelaxation_rate == 0
+        if sweep % dosweep == 0
             # local metropolis updates 
             accepted_local += alg(mc, mc.T)
             E = total_energy(mc.lattice)
