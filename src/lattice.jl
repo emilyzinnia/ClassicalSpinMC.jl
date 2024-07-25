@@ -62,14 +62,14 @@ Wrapper for creating Lattice object.
 - `bc::String="periodic"`: boundary conditions; can either be "open" or "periodic". open bc currently only implemented for all boundaries, cannot be partially open/periodic. 
 - `initialCondition::Symbol=:random`: all spins start out in a random configuration. can be `:random` or `:fm` where all spins are aligned in an arbitrary direction. 
 """
-function Lattice(size::NTuple{D,Int64}, uc::UnitCell{D}, 
+function Lattice(shape::NTuple{D,Int64}, uc::UnitCell{D}, 
                 S::Real=1/2; bc::String="periodic", initialCondition::Symbol=:random) where D
     
     if length(uc.basis) == 0
         addBasisSite!(uc, zeros(Float64, D))
     end
 
-    N_sites = prod(size) * length(uc.basis)
+    N_sites = prod(shape) * length(uc.basis)
     spins = Array{Float64, 2}(undef, 3, N_sites)
 
     # initialize spins
@@ -84,7 +84,7 @@ function Lattice(size::NTuple{D,Int64}, uc::UnitCell{D},
         end
     end
 
-    indices = site_indices(size, length(uc.basis))
+    indices = site_indices(shape, length(uc.basis))
     N2 = length(uc.bilinear)
     N3 = length(uc.cubic)
     N4 = length(uc.quartic)
@@ -92,15 +92,15 @@ function Lattice(size::NTuple{D,Int64}, uc::UnitCell{D},
     lat = Lattice(D,N2,N3,N4)
     lat.S = S
     lat.bc = bc 
-    lat.shape = size
+    lat.shape = shape
     lat.size = N_sites
     lat.spins = spins 
-    lat.site_positions = compute_site_positions(uc, size)
+    lat.site_positions = compute_site_positions(uc, shape)
     lat.unit_cell = uc 
 
     function BC(index, offset)
         if bc == "periodic"
-            return mod.( index[2:end].+ (offset) .-1, size) .+1
+            return mod.( index[2:end].+ (offset) .-1, shape) .+1
         elseif bc == "open"
             return index[2:end].+ (offset) 
         else
@@ -217,14 +217,12 @@ function Lattice(size::NTuple{D,Int64}, uc::UnitCell{D},
             elseif b2 == index[1] # [b2, b1, b3] 
                 bj, bk = b1, b3  
                 k_offset = k_offset.-j_offset
-                j_offset = j_offset.*-1 
-                
+                j_offset = j_offset.*-1
                 J = permutedims(J,[2,1,3])
             elseif b3 == index[1] # [b3, b2, b1]
                 bj, bk = b2, b1 
                 j_offset = j_offset .-k_offset
                 k_offset = k_offset .*-1 
-                
                 J = permutedims(J,[3,2,1])
             end 
             j = findfirst(x->x == (bj, BC(index, j_offset)...), indices)
@@ -236,7 +234,6 @@ function Lattice(size::NTuple{D,Int64}, uc::UnitCell{D},
                 s3_[term] = (j, k)
                 M3_[term] = J
             end
-            
         end
         push!(lat.cubic_sites, tuple(s3_...))
         push!(lat.cubic_tensors, tuple(M3_...))
@@ -249,6 +246,7 @@ function Lattice(size::NTuple{D,Int64}, uc::UnitCell{D},
             if !(index[1] in (b1, b2, b3, b4))
                 s4_[term] = (1,1,1)
                 M4_[term] = zeros(Float64, size(J))
+                
                 continue
             elseif b1 == index[1]
                 bj, bk, bl = b2, b3, b4
