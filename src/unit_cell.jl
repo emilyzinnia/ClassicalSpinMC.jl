@@ -57,7 +57,9 @@ Add general cubic interaction between basis sites b1, b2, and b3 with o2, o3 den
 function addCubic!(uc::UnitCell{D}, b1::Int64, b2::Int64, b3::Int64, M::Array{Float64, 3}, 
                           o2::NTuple{D, Int64}=Tuple(zeros(Int64, D)), 
                           o3::NTuple{D, Int64}=Tuple(zeros(Int64, D))) where D
-    push!(uc.cubic, (b1, b2, b3, M, o2, o3))
+    if !iszero(M)
+        push!(uc.cubic, (b1, b2, b3, M, o2, o3))
+    end
 end
 
 """
@@ -67,5 +69,7 @@ function addQuartic!(uc::UnitCell{D}, b1::Int64, b2::Int64, b3::Int64, b4::Int64
                           o2::NTuple{D, Int64}=Tuple(zeros(Int64, D)), 
                           o3::NTuple{D, Int64}=Tuple(zeros(Int64, D)),
                           o4::NTuple{D, Int64}=Tuple(zeros(Int64, D))) where D
-    push!(uc.quartic, (b1, b2, b3, b4, M, o2, o3, o4))
+    if !iszero(M)
+        push!(uc.quartic, (b1, b2, b3, b4, M, o2, o3, o4))
+    end 
 end
