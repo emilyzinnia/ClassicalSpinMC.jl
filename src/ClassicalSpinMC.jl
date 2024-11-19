@@ -31,4 +31,7 @@ export total_energy, energy_density, get_local_field
 include("bravais.jl")
 export Triangular, Square, Honeycomb, FCC, Pyrochlore, BreathingPyrochlore
 
+include("spin_correlations.jl")
+export compute_equal_time_correlations, runEqualTimeStructureFactor!
+
 end 
