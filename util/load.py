@@ -31,6 +31,7 @@ class Params:
             self.shape = npa(f["lattice/size"])
             self.bc = str(f["lattice/bc"].asstr()[...])
             self.N = npa(f["lattice/size"]).prod() * npa(f["unit_cell/basis"]).shape[0] # number of sites 
+            self.lattice_vectors = npa(f["unit_cell/lattice_vectors"])
 
 class SimData:
     def __init__(self, filename):
@@ -42,7 +43,9 @@ class SimData:
             self.spins = npa(f["spins"])
             self.site_positions = npa(f["site_positions"])
             self.T = f.attrs["T"]
-        self.data = {"T": self.T}
+            self.data = {"T": self.T}
+            if "energy" in f.keys():
+                self.data["E"] = npa(f["energy"])
 
     def load_group(self, groupname):
         with h5py.File(self.filename, "r") as f:
@@ -66,34 +69,30 @@ def get_thermal_observables(path):
     return pd.DataFrame(df)
 
 
-def plot_observable(dat, name, color="blue",**kwargs):
+def plot_observable(ax, dat, name, color="blue",**kwargs):
     # sort data by temperature 
     idx = np.argsort(npa(dat["T"]))
     T = npa(dat["T"][idx])
     o = npa(dat[name][idx])
     oerr = npa(dat["{}_err".format(name)][idx])
-
-    fig, ax = pl.subplots()
     vertices = np.block([[T, T[::-1]],
                     [(o+oerr), (o-oerr)[::-1]]]).T
     path_patch = Path(vertices)
     patch = PathPatch(path_patch, facecolor=color, edgecolor='none', alpha=0.5)
     ax.add_patch(patch)
     ax.plot(T, o, color=color, **kwargs)
-    return fig, ax 
 
-def plot_spin_config(dat, R=np.eye(3)):
+def plot_spin_config(ax, dat, R=np.eye(3), proj=(0,1)):
     spins = dat.spins
     spins_abc = np.einsum("ij,jk", spins, R)
     pos = dat.site_positions 
-    fig, ax = pl.subplots()
     # xy projection of the spin configuration
-    ax.quiver(pos[:,0],pos[:,1], spins_abc[:,0], spins_abc[:,2],  
+    labels =["x", "y", "z"]
+    ax.quiver(pos[:,0],pos[:,1], spins_abc[:,proj[0]], spins_abc[:,proj[1]],  
             pivot='middle', color='red',  scale=10)
-    ax.set_title(r"$xy$ projection", fontsize=12, y=-0.1)
+    ax.set_title(r"${}{}$ projection".format(labels[proj[0]], labels[proj[1]]), fontsize=12, y=-0.1)
     ax.set_aspect('equal')
     ax.set_axis_off()
-    return fig, ax 
 
 def plot_spin_config_sphere(dat, R=np.eye(3), cmap="viridis"):
     spins = dat.spins
