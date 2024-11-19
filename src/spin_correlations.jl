@@ -125,7 +125,7 @@ function compute_equal_time_structure_factor(path::String, dest::String)
 
     # collecting correlations
     println("Collecting correlations from ", length(files), " files")
-    @showprogress for file in files 
+    for file in files 
         h5open(string(path, file), "r") do f 
             Suv = read(f["spin_correlations/SSF"])
             push!(SSF, Suv)

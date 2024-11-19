@@ -32,6 +32,6 @@ include("bravais.jl")
 export Triangular, Square, Honeycomb, FCC, Pyrochlore, BreathingPyrochlore
 
 include("spin_correlations.jl")
-export compute_equal_time_correlations, runEqualTimeStructureFactor!
+export compute_equal_time_correlations, runEqualTimeStructureFactor!, compute_equal_time_structure_factor
 
 end 
