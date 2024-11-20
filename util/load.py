@@ -83,7 +83,7 @@ def plot_observable(ax, dat, name, color="blue",**kwargs):
     ax.plot(T, o, color=color, **kwargs)
 
 def plot_spin_config(ax, dat, R=np.eye(3), proj=(0,1)):
-    spins = dat.spins
+    spins = dat.spins / dat.params.S
     spins_abc = np.einsum("ij,jk", spins, R)
     pos = dat.site_positions 
     # xy projection of the spin configuration
@@ -98,12 +98,43 @@ def plot_spin_config_sphere(dat, R=np.eye(3), cmap="viridis"):
     spins = dat.spins
     spins_abc = np.einsum("ij,jk", spins, R)
     c= mpl.cm.get_cmap(cmap, spins_abc.shape[0])
+    S = dat.params.S
 
     fig = pl.figure()
     ax = fig.add_subplot(111, projection='3d')
+
+    # color depends on polar angle 
+    x = spins_abc[:,0]
+    y = spins_abc[:,1]
+    z = spins_abc[:,2]
+
+    theta = np.arctan2(np.sqrt(x**2+y**2), z)
+    phi = np.arctan2(y, x)
+    idx = np.argsort(theta+phi)
+    spins_abc = spins_abc[idx,:]
     
     for i in range(spins_abc.shape[0]):
         arrow = Arrow3D([0.0, spins_abc[i,0]], [0.0, spins_abc[i,1]], [0.0, spins_abc[i,2]],
                             mutation_scale=20, lw=2, arrowstyle="-|>", color=c(i), zorder=0) 
         ax.add_artist(arrow)
+
+    ax.set_axis_off()
+    ax.set_aspect('equal')
+    ax.set_xlim([-S, S])
+    ax.set_ylim([-S, S])
+    ax.set_zlim([-S, S])
+
+    size = 1.6*S
+    axx = npa([1.0, 0.0, 0.0]) * size
+    axy = npa([0.0, 1.0, 0.0]) * size
+    axz = npa([0.0, 0.0, 1.0]) * size
+
+    labels = ["x", "y", "z"]
+    for i, arr in enumerate([axx, axy, axz]):
+        axarrows = list(zip(np.zeros(3), arr))
+        arrow = Arrow3D( axarrows[0], axarrows[1], axarrows[2], 
+                        mutation_scale=20, lw=1, arrowstyle="-|>", color="k", zorder=0) 
+        ax.add_artist(arrow)
+        ax.text(*arr, labels[i])
+
     return fig, ax 
