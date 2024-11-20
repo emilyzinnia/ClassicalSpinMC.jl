@@ -32,6 +32,23 @@ def get_intersections(p1, p2):
     l2 = Segment( Point(0,0), Point(*p2) ).perpendicular_bisector()
     return float(l1.intersection(l2)[0][0]), float(l1.intersection(l2)[0][1])
 
+def reciprocal(*args):
+    if len(args) == 2: 
+        a1, a2 = args 
+        mag = 2*np.pi  / (a1[0]*a2[1] - a1[1]*a2[0])
+        b1 = mag * npa([a2[1], -a2[0]])
+        b2 = mag * npa([-a1[1], a1[0]])
+        return (b1, b2)
+    elif len(args) == 3:
+        a1, a2, a3 = args 
+        mag = 2*np.pi  / np.dot(a1, np.cross(a2, a3)) 
+        b1 = mag * np.cross(a2, a3)
+        b2 = mag * np.cross(a3, a1)
+        b3 = mag * np.cross(a1, a2)
+        return (b1, b2, b3) 
+    else:
+        raise ValueError("Expected either 2 or 3 arguments")
+
 def draw_FBZ_2D(*points):
     # get a set of all reflections 
     set = []
@@ -50,7 +67,7 @@ def draw_FBZ_2D(*points):
     # get vertices of polygon
     pairs = np.roll(set, -1, axis=0)
     # get_intersections(set[0,:], pairs[0])
-    vertices = npa([ get_intersections(p, pairs[i]) for i, p in enumerate(set)]) * 2 * np.pi 
+    vertices = npa([ get_intersections(p, pairs[i]) for i, p in enumerate(set)]) 
     return vertices
 
 def plot_SSF(data, figobjects, R=np.eye(3), **kwargs):
@@ -69,7 +86,7 @@ def plot_SSF(data, figobjects, R=np.eye(3), **kwargs):
     cb = fig.colorbar(cs, ax=ax, shrink=0.7, use_gridspec=True)
 
     # plot FBZ 
-    bz = draw_FBZ_2D(*data.params.lattice_vectors)
+    bz = draw_FBZ_2D(*reciprocal(*data.params.lattice_vectors))
     ax.add_patch(Polygon(bz, closed=True, facecolor='none', edgecolor="white",linewidth=1))
 
     r = np.arange(-2, 3)
