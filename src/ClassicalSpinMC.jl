@@ -17,7 +17,7 @@ export get_magnetization
 include("helper.jl")
 
 include("hdf5.jl")
-export overwrite_keys!, write_MC_checkpoint, create_params_file
+export overwrite_keys!, write_MC_checkpoint, create_params_file, read_lattice
 
 include("metropolis.jl")
 export Metropolis, MetropolisAdaptive, MetropolisConstraint, MetropolisConstraintAdaptive
