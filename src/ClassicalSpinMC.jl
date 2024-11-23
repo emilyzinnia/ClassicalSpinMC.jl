@@ -6,7 +6,7 @@ include("unit_cell.jl")
 export UnitCell, addBasisSite!, addBilinear!, addCubic!, addQuartic!, addZeemanCoupling!, addOnSite!
 
 include("reciprocal.jl")
-export get_allowed_wavevectors, get_k_path, get_k_plane
+export reciprocal, get_allowed_wavevectors, get_k_path, get_k_plane
 
 include("lattice.jl")
 export Lattice, set_spin!, random_spin_orientation
