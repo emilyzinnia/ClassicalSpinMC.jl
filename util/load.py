@@ -34,11 +34,13 @@ class Params:
             self.lattice_vectors = npa(f["unit_cell/lattice_vectors"])
 
 class SimData:
-    def __init__(self, filename):
+    def __init__(self, filename, paramsfilepath=None):
         self.filename = filename
+        
         with h5py.File(filename, "r") as f:
             paramsfile = f.attrs["paramsfile"].decode('UTF-8')
-            paramsfilepath = os.path.dirname(filename) + "/" + os.path.basename(paramsfile)
+            if paramsfilepath == None:
+                paramsfilepath = os.path.dirname(filename) + "/" + os.path.basename(paramsfile)
             self.params = Params(paramsfilepath)
             self.spins = npa(f["spins"])
             self.site_positions = npa(f["site_positions"])
@@ -56,12 +58,12 @@ class SimData:
     def to_dict(self, keys):
         return dict( (key, self.data[key]) for key in keys )
     
-def get_thermal_observables(path):
+def get_thermal_observables(path, **kwargs):
     '''Reads thermal observables given path with trailing backslash, returns Pandas dataframe'''
     df = []
     for file in os.listdir(path):
         if (".h5" in file) & (".params" not in file):
-            data = SimData(path+file)
+            data = SimData(path+file, **kwargs)
             data.load_group("observables")
             df.append(data.to_dict(["magnetization", "magnetization_err", 
                                    "specific_heat", "specific_heat_err",
