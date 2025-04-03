@@ -119,7 +119,7 @@ function overrelaxation!(lattice::Lattice)
         H = get_local_field(lattice, site)
         # if no local field, keep spin as is
         if H == (0.0, 0.0, 0.0)
-            println("no local field")
+            # println("no local field")
             continue 
         end
         proj = 2.0 * dot(si, H) / (H[1]^2 + H[2]^2 + H[3]^2)

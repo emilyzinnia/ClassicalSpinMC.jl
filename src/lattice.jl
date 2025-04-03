@@ -176,7 +176,7 @@ function Lattice(shape::NTuple{D,Int64}, uc::UnitCell{D},
         for term in 1:N2
             b1, b2, M, offset = bilinear[term]
             if !(index[1] in (b1, b2))
-                s2_[term] = 1
+                s2_[term] = 0
                 M2_[term] = InteractionMatrix(zeros(Float64, 3, 3))
                 continue
             end 
@@ -198,7 +198,7 @@ function Lattice(shape::NTuple{D,Int64}, uc::UnitCell{D},
                 s2_[term] = j
                 M2_[term] = M
             else # open BC 
-                s2_[term] = 1
+                s2_[term] = 0
                 M2_[term] = InteractionMatrix(zeros(Float64, 3, 3))
             end
         end
@@ -209,7 +209,7 @@ function Lattice(shape::NTuple{D,Int64}, uc::UnitCell{D},
         for term in 1:N3
             b1, b2, b3, J, j_offset, k_offset = cubic[term]
             if !(index[1] in (b1, b2, b3))
-                s3_[term] = (1, 1)
+                s3_[term] = (0, 0)
                 M3_[term] = zeros(Float64, size(J))
                 continue
             elseif b1 == index[1]
@@ -228,7 +228,7 @@ function Lattice(shape::NTuple{D,Int64}, uc::UnitCell{D},
             j = findfirst(x->x == (bj, BC(index, j_offset)...), indices)
             k = findfirst(x->x == (bk, BC(index, k_offset)...), indices)
             if isnothing(j) | isnothing(k) # open BC 
-                s3_[term] = (1, 1)
+                s3_[term] = (0, 0)
                 M3_[term] = zeros(Float64, size(J))
             else # periodic 
                 s3_[term] = (j, k)
@@ -244,7 +244,7 @@ function Lattice(shape::NTuple{D,Int64}, uc::UnitCell{D},
             b1, b2, b3, b4, J, j_offset, k_offset, l_offset = quartic[term]
             
             if !(index[1] in (b1, b2, b3, b4))
-                s4_[term] = (1,1,1)
+                s4_[term] = (0,0,0)
                 M4_[term] = zeros(Float64, size(J))
                 
                 continue
@@ -274,7 +274,7 @@ function Lattice(shape::NTuple{D,Int64}, uc::UnitCell{D},
             k = findfirst(x->x == (bk, BC(index, k_offset)...), indices)
             l = findfirst(x->x == (bl, BC(index, l_offset)...), indices)
             if isnothing(j) | isnothing(k) | isnothing(l) # open BC
-                s4_[term] = (1,1, 1)
+                s4_[term] = (0,0, 0)
                 M4_[term] = zeros(Float64, size(J))
             else # periodic 
                 s4_[term] = (j, k, l)

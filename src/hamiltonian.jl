@@ -23,6 +23,9 @@ function get_local_field(lattice::Lattice, point::Int64)
 
     # bilinear interaction 
     for n in eachindex(js)
+        if js[n] == 0 
+            continue
+        end
         J = Js[n]
         @inbounds sjx, sjy, sjz = get_spin(lattice.spins, js[n])
         @inbounds Hx += J.m11 * sjx + J.m12 * sjy + J.m13 * sjz 
@@ -34,6 +37,9 @@ function get_local_field(lattice::Lattice, point::Int64)
     for n in eachindex(cs)
         C = Cs[n]
         j, k = cs[n]
+        if cs[n] == (0,0)
+            continue
+        end
         @inbounds sj = get_spin(lattice.spins, j)
         @inbounds sk = get_spin(lattice.spins, k)
 
@@ -46,6 +52,9 @@ function get_local_field(lattice::Lattice, point::Int64)
     for n in eachindex(rs)
         R = Rs[n]
         j, k, l = rs[n]
+        if rs[n] == (0,0)
+            continue
+        end
         @inbounds sj = get_spin(lattice.spins, j)
         @inbounds sk = get_spin(lattice.spins, k)
         @inbounds sl = get_spin(lattice.spins, l)
@@ -84,6 +93,9 @@ function total_energy(lattice::Lattice)
 
         for n in eachindex(js)
             J = Js[n]
+            if js[n] == 0 
+                continue
+            end
             @inbounds sj = get_spin(lattice.spins, js[n])
             @inbounds E_bilinear +=  s[1] * (J.m11 * sj[1] + J.m12 * sj[2] + J.m13 * sj[3]) + 
                                      s[2] * (J.m21 * sj[1] + J.m22 * sj[2] + J.m23 * sj[3]) + 
@@ -94,6 +106,9 @@ function total_energy(lattice::Lattice)
         for n in eachindex(cs)
             C = Cs[n]
             j, k = cs[n]
+            if cs[n] == (0,0)
+                continue
+            end
             @inbounds sj = get_spin(lattice.spins, j)
             @inbounds sk = get_spin(lattice.spins, k)
             @einsum E_cubic += C[a, b, c] * s[a] * sj[b] * sk[c]
@@ -103,6 +118,9 @@ function total_energy(lattice::Lattice)
         for n in eachindex(rs)
             R = Rs[n]
             j, k, l = rs[n]
+            if rs[n] == (0,0,0)
+                continue
+            end
             @inbounds sj = get_spin(lattice.spins, j)
             @inbounds sk = get_spin(lattice.spins, k)
             @inbounds sl = get_spin(lattice.spins, l)
@@ -140,6 +158,9 @@ function energy(lattice::Lattice, point::Int64)::Float64
     
     # bilinear term
     for n in eachindex(js)
+        if js[n] == 0 
+            continue
+        end
         J = Js[n]
         @inbounds sj = get_spin(lattice.spins, js[n])
         @inbounds E +=  s[1] * (J.m11 * sj[1] + J.m12 * sj[2] + J.m13 * sj[3]) + 
@@ -151,6 +172,9 @@ function energy(lattice::Lattice, point::Int64)::Float64
     for n in eachindex(cs)
         C = Cs[n]
         j, k = cs[n]
+        if cs[n] == (0,0)
+            continue
+        end
         @inbounds sj = get_spin(lattice.spins, j)
         @inbounds sk = get_spin(lattice.spins, k)
         @einsum E += C[a, b, c] * s[a] * sj[b] * sk[c] 
@@ -160,6 +184,9 @@ function energy(lattice::Lattice, point::Int64)::Float64
     for n in eachindex(rs)
         R = Rs[n]
         j, k, l = rs[n]
+        if rs[n] == (0,0,0)
+            continue
+        end
         @inbounds sj = get_spin(lattice.spins, j)
         @inbounds sk = get_spin(lattice.spins, k)
         @inbounds sl = get_spin(lattice.spins, l)
