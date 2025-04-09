@@ -232,7 +232,7 @@ when initializing MonteCarlo object:
 - `saveIC::Vector{Int64}=Vector{Int64}[]`: vector containing which ranks to output thermalized 
 configurations on every `checkpoint_rate` sweeps. can be used as initial configurations (IC) for Landau Lifshitz Gilbert calculations. 
 """
-function parallel_tempering!(mc::MonteCarlo, saveIC::Vector{Int64}=Vector{Int64}[]; 
+function parallel_tempering!(mc::MonteCarlo, saveIC::Vector{Int64}=Int64[]; 
     alg::FunctionWrapper{Float64, Tuple{MonteCarlo,Float64}}=Metropolis())
     # initialize MPI parameters 
     rank = 0
