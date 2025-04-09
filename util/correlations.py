@@ -78,25 +78,12 @@ def plot_SSF(data, figobjects, R=np.eye(3), **kwargs):
 
     # compute neutron structure factor 
     tot = structure_factor(Suv, np.c_[wf, np.zeros(wf.shape[0])], basis=R) 
-
-    # triangulation for plotting 
-    lim = (-2*np.pi <= wf[:,0]) & (wf[:,0]<= 2*np.pi) & (-2*np.pi <= wf[:,1]) & (wf[:,1]<= 2*np.pi)
-    triMesh = Triangulation(wf[:,0][lim], wf[:,1][lim])
-    cs = ax.tripcolor(triMesh, tot[lim], **kwargs)
+    triMesh = Triangulation(wf[:,0]/(2*np.pi), wf[:,1]/(2*np.pi))
+    cs = ax.tripcolor(triMesh, tot, **kwargs)
     cb = fig.colorbar(cs, ax=ax, shrink=0.7, use_gridspec=True)
 
-    # plot FBZ 
-    bz = draw_FBZ_2D(*reciprocal(*data.params.lattice_vectors))
-    ax.add_patch(Polygon(bz, closed=True, facecolor='none', edgecolor="white",linewidth=1))
-
-    r = np.arange(-2, 3)
+    r = np.arange(-3, 4)
     labels = [r'${}\pi$'.format(num) if num != 0 else "0" for num in r]
 
     ax.set_aspect("equal")
-    ax.set_xlim([-2*np.pi, 2*np.pi])
-    ax.set_ylim([-2*np.pi, 2*np.pi])
-    ax.set_facecolor("black")
-    ax.set_xticks(r*np.pi)
-    ax.set_yticks(r*np.pi)
-    ax.set_xticklabels( labels)
-    ax.set_yticklabels( labels)
+    ax.set_facecolor("white")
