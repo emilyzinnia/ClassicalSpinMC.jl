@@ -225,6 +225,16 @@ function write_final_observables(mc)
     g["magnetization_err"] = std_error(mc.observables.magnetization, 1)
     g["energy"] = mean(mc.observables.energy,1)
     g["energy_err"] = std_error(mc.observables.energy,1)
+
+    if mc.corr
+        d = haskey(file, "spin_correlations") ? file["spin_correlations"] : create_group(file, "spin_correlations")
+        res = Dict(
+               "SSF"=>mean(mc.observables.correlations), 
+               "SSF_momentum"=>mc.momentum_vectors)
+        overwrite_keys!(d, res)   
+        println("Writing spin correlations to $(mc.outpath)")
+    end
+    # write roundtrip marker
     close(file)
 end
 

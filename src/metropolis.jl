@@ -23,6 +23,8 @@ mutable struct MonteCarlo
     outpath::String # absolute path to hdf5 file 
     sigma::Real
     sigma0::Real
+    corr::Bool 
+    momentum_vectors::Array{Float64,2} # momentum vectors for correlations
     MonteCarlo() = new()
 end
 

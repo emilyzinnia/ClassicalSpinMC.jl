@@ -53,16 +53,24 @@ if empty string, no files are written.
 output in .params file. 
 - `overwrite::Bool=true`: flag for overwriting existing files. 
 """
-function MonteCarlo(T::Float64, lattice::Lattice, parameters::Dict{String,Int64}; 
+function MonteCarlo(T::Float64, lattice::Lattice{D,N2,N3,N4}, parameters::Dict{String,Int64}; 
                     constraint::Function=x->0.0, weight::Float64=0.0, 
                     outpath::String="", outprefix::String="configuration", 
                     inparams::Dict{String,<:Any}=Dict{String,Any}(),
-                    overwrite::Bool=true, sigma0::Real=60)::MonteCarlo
+                    overwrite::Bool=true, sigma0::Real=60, 
+                    corr::Bool=false, ks::Matrix{Float64}=Matrix{Float64}(undef,D,0))::MonteCarlo where{D,N2,N3,N4}
     
+
+    if corr && size(ks)[2] == 0
+        @error "No momentum vectors provided for correlation calculations!"
+    elseif !corr && size(ks)[2] != 0
+        @warn "Momentum vectors provided but correlation calculations not requested!"
+    end
+
     # trailing backslash included in outpath
     mc = MonteCarlo()
     mc.T = T 
-    mc.observables = Observables()
+    mc.observables = Observables(size(ks)[2])
     mc.lattice = deepcopy(lattice)
     mc.parameters = MCParamsBuffer(parameters)
     mc.lambda = 0.0
@@ -70,6 +78,8 @@ function MonteCarlo(T::Float64, lattice::Lattice, parameters::Dict{String,Int64}
     mc.constraint = constraint 
     mc.sigma = sigma0
     mc.sigma0 = sigma0
+    mc.corr = corr 
+    mc.momentum_vectors = ks 
 
     # initialize MPI parameters 
     if MPI.Initialized()
@@ -358,6 +368,11 @@ function parallel_tempering!(mc::MonteCarlo, saveIC::Vector{Int64}=Vector{Int64}
             if sweep % mc.parameters.probe_rate == 0
                 M = get_magnetization(mc.lattice)
                 update_observables!(mc, E,  M)
+                if mc.corr
+                    # compute correlations and output
+                    SSF = compute_equal_time_correlations(mc.lattice, mc.momentum_vectors)
+                    update_correlations!(mc, SSF)
+                end
             end
         end
         

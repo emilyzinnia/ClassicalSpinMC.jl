@@ -5,7 +5,8 @@ using LinearAlgebra
 mutable struct Observables
     energy::ErrorPropagator{Float64,32}
     magnetization::ErrorPropagator{Float64,32}
-    Observables() = new(ErrorPropagator(Float64), ErrorPropagator(Float64))
+    correlations::LogBinner{Array{Float64,2},32,BinningAnalysis.Variance{Array{Float64,2}}}
+    Observables(N_k::Int64) = new(ErrorPropagator(Float64), ErrorPropagator(Float64),  LogBinner(zeros(Float64, 9, N_k) ) )
 end
 
 function get_magnetization(lattice::Lattice)::Float64
@@ -21,6 +22,11 @@ function update_observables!(mc, energy::Float64, magnetization::Float64)
     push!(mc.observables.energy, energy, energy^2 )
     #measure magnetization and magnetization^2 
     push!(mc.observables.magnetization, magnetization, magnetization^2)
+end
+
+function update_correlations!(mc, correlations::Array{Float64,2})
+    #measure spin correlations
+    push!(mc.observables.correlations, correlations)
 end
 
 function std_error_tweak(ep::ErrorPropagator, gradient, lvl = BinningAnalysis._reliable_level(ep))
