@@ -52,7 +52,7 @@ function get_local_field(lattice::Lattice, point::Int64)
     for n in eachindex(rs)
         R = Rs[n]
         j, k, l = rs[n]
-        if rs[n] == (0,0)
+        if rs[n] == (0,0,0)
             continue
         end
         @inbounds sj = get_spin(lattice.spins, j)
