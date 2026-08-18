@@ -132,6 +132,26 @@ function metropolis_adaptive!(mc::MonteCarlo, T::Float64)::Float64
     return accept_rate
 end
 
+# need to reset mc.sigma for every new temperature 
+function metropolis_fixed_cone!(mc::MonteCarlo, T::Float64)::Float64
+    accept_rate = 0.0
+    # perform local updates and sweep through lattice
+    sweep = 0
+    while sweep < mc.lattice.size
+        point = rand(1:mc.lattice.size) # pick random index
+        old_spin = get_spin(mc.lattice.spins, point) # store old spin 
+        delta_E = calculate_energy_diff!(mc.lattice, point, mc.sigma) 
+        accept = (delta_E) < 0 ? true : rand() < exp(-(delta_E) / T)
+        if !accept
+            set_spin!(mc.lattice.spins, old_spin, point) 
+        else 
+            accept_rate += 1 
+        end
+        sweep += 1 
+    end
+    return accept_rate
+end
+
 function metropolis_constraint_adaptive!(mc::MonteCarlo, T::Float64)::Float64
     accept_rate = 0.0
     # perform local updates and sweep through lattice
@@ -164,6 +184,10 @@ end
 
 function MetropolisAdaptive()::FunctionWrapper{Float64, Tuple{MonteCarlo,Float64}}
     return FunctionWrapper{Float64, Tuple{MonteCarlo,Float64}}(metropolis_adaptive!)
+end
+
+function MetropolisFixedCone()::FunctionWrapper{Float64, Tuple{MonteCarlo,Float64}}
+    return FunctionWrapper{Float64, Tuple{MonteCarlo,Float64}}(metropolis_fixed_cone!)
 end
 
 function MetropolisConstraint()::FunctionWrapper{Float64, Tuple{MonteCarlo,Float64}}
