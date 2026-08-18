@@ -20,7 +20,7 @@ include("hdf5.jl")
 export overwrite_keys!, write_MC_checkpoint, create_params_file, read_lattice, read_spin_configuration!
 
 include("metropolis.jl")
-export Metropolis, MetropolisAdaptive, MetropolisConstraint, MetropolisConstraintAdaptive
+export Metropolis, MetropolisAdaptive, MetropolisConstraint, MetropolisConstraintAdaptive, MetropolisFixedCone
 
 include("monte_carlo.jl")
 export MonteCarlo, simulated_annealing!, deterministic_updates!, parallel_tempering!
