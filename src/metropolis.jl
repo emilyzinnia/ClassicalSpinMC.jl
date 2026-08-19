@@ -126,9 +126,9 @@ function metropolis_adaptive!(mc::MonteCarlo, T::Float64)::Float64
         end
         sweep += 1 
     end
-    f = 0.5 / (1-accept_rate/sweep)
-    # mc.sigma = accept_rate/sweep < 0.5 ? mc.sigma * f : mc.sigma0 # if acceptance rate > 50%, reset cone width to initial large value 
-    mc.sigma *= f 
+    a = accept_rate / sweep
+    f = 0.5 / max(1 - a, 0.05)        # cap f so it can't exceed 10x per call
+    mc.sigma = clamp(mc.sigma * f, 0.0, 100) # keep sigma between reasonable bounds 
     return accept_rate
 end
 
