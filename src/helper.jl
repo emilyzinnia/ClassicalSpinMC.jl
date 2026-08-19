@@ -29,7 +29,7 @@ function print_runtime_statistics!(mc, t, output_stats::Vector{Int64}, enableMPI
     thermalized = (t >= mc.parameters.t_thermalization) ? "YES" : "NO"
     attempted_local = (t - s_prev) * mc.lattice.size / mc.parameters.overrelaxation_rate
     local_acceptance_rate = (accepted_local-local_prev) / attempted_local * 100.0
-    sigma = mc.sigma 
+    local_sigma = mc.sigma
 
     if enableMPI
         comm = MPI.COMM_WORLD
@@ -45,6 +45,9 @@ function print_runtime_statistics!(mc, t, output_stats::Vector{Int64}, enableMPI
         all_exchanges = zeros(commSize)
         all_exchanges[rank + 1] = exchange_rate_tot
         MPI.Allgather!(MPI.IN_PLACE, all_exchanges, 1, comm)
+        all_sigma = zeros(commSize)
+        all_sigma[rank + 1] = local_sigma 
+        MPI.Allgather!(MPI.IN_PLACE, all_sigma, 1, comm)
     else
         commSize = 1
         rank = 0 
@@ -58,10 +61,10 @@ function print_runtime_statistics!(mc, t, output_stats::Vector{Int64}, enableMPI
         str *= @sprintf("Sweep %d / %d (%.1f%%)\n", t, total_sweeps, progress)
         str *= @sprintf("\t\tthermalized : %s\n", thermalized)
         if commSize == 1
-            str *= @sprintf("\t\tupdate acceptance rate : %.2f%%\tsigma : %.2f%%\n", local_acceptance_rate, sigma)
+            str *= @sprintf("\t\tupdate acceptance rate : %.2f%%\tsigma : %.2f%\n", local_acceptance_rate, local_sigma)
         else
             for n in 1:commSize
-                str *= @sprintf("\t\tsimulation %d update acceptance rate : %.2f%%\tsigma : %.2f%%\n", n - 1, all_local_acceptance[n], sigma)
+                str *= @sprintf("\t\tsimulation %d update acceptance rate : %.2f%%\tsigma : %.2f%\n", n - 1, all_local_acceptance[n], all_sigma[n])
                 str *= @sprintf("\t\tsimulation %d replica exchange acceptance rate : %.2f%%\n", n - 1, all_exchanges[n])
             end
         end
