@@ -61,10 +61,10 @@ function print_runtime_statistics!(mc, t, output_stats::Vector{Int64}, enableMPI
         str *= @sprintf("Sweep %d / %d (%.1f%%)\n", t, total_sweeps, progress)
         str *= @sprintf("\t\tthermalized : %s\n", thermalized)
         if commSize == 1
-            str *= @sprintf("\t\tupdate acceptance rate : %.2f%%\tsigma : %.2f%\n", local_acceptance_rate, local_sigma)
+            str *= @sprintf("\t\tupdate acceptance rate : %.2f%%\tsigma : %.2f\n", local_acceptance_rate, local_sigma)
         else
             for n in 1:commSize
-                str *= @sprintf("\t\tsimulation %d update acceptance rate : %.2f%%\tsigma : %.2f%\n", n - 1, all_local_acceptance[n], all_sigma[n])
+                str *= @sprintf("\t\tsimulation %d update acceptance rate : %.2f%%\tsigma : %.2f\n", n - 1, all_local_acceptance[n], all_sigma[n])
                 str *= @sprintf("\t\tsimulation %d replica exchange acceptance rate : %.2f%%\n", n - 1, all_exchanges[n])
             end
         end
